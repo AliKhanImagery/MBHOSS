@@ -15,6 +15,11 @@ import {
   ShieldAlert,
   FileCog,
   Wrench,
+  Search,
+  Bell,
+  Sun,
+  Moon,
+  ExternalLink,
 } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 
@@ -23,7 +28,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { currentUser, logout, activeCases } = useApp();
 
-  // If on login page, do not show navigation sidebar
+  // If on login page, do not show navigation shell
   if (pathname === '/login') {
     return <>{children}</>;
   }
@@ -35,7 +40,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       shortLabel: 'Agent',
       icon: Sparkles,
       active: pathname.startsWith('/agent'),
-      badge: 'AI Core',
     },
     {
       href: '/cases',
@@ -75,122 +79,130 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <div className="flex flex-col md:flex-row h-[100dvh] w-screen overflow-hidden bg-slate-950 text-slate-100 select-none">
-      {/* Desktop Sidebar (hidden on mobile) */}
-      <aside className="hidden md:flex md:w-60 flex-shrink-0 bg-slate-950 border-r border-slate-800/80 flex-col justify-between z-30 transition-all duration-200">
-        {/* Top: Brand Header */}
-        <div>
-          <div className="h-14 border-b border-slate-800/80 px-3 md:px-4 flex items-center justify-between">
-            <Link href="/agent/quotation" className="flex items-center space-x-2.5 group">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-amber-500 via-amber-400 to-yellow-300 flex items-center justify-center text-slate-950 font-black shadow-md shadow-amber-500/20 group-hover:scale-105 transition-transform">
-                <Zap className="w-4 h-4 fill-slate-950" />
-              </div>
-              <div className="hidden md:block">
-                <div className="font-extrabold text-sm tracking-tight text-white flex items-center space-x-1.5">
-                  <span>Qri OS</span>
-                  <span className="text-[9px] px-1.5 py-0.2 bg-amber-500/15 text-amber-300 border border-amber-500/30 rounded font-mono font-bold">
-                    v2.0
-                  </span>
-                </div>
-                <div className="text-[9px] text-slate-400 tracking-wider font-mono uppercase">
-                  Procurement Agent
-                </div>
-              </div>
-            </Link>
+    <div className="flex flex-col h-[100dvh] w-screen overflow-hidden bg-[#101114] text-slate-100 select-none p-1 sm:p-2 md:p-3">
+      {/* =========================================================================
+          TOP OUTER HEADER (Desktop/Tablet Branding Bar)
+      ========================================================================= */}
+      <header className="hidden sm:flex h-9 px-3 items-center justify-between text-xs text-slate-400 flex-shrink-0 mb-1.5">
+        <div className="flex items-center space-x-2.5">
+          <div className="w-5 h-5 rounded-md bg-[#FF4D6D] flex items-center justify-center text-white font-black shadow-sm">
+            <Zap className="w-3 h-3 fill-white" />
           </div>
+          <span className="font-bold text-sm tracking-tight text-white flex items-center space-x-1.5">
+            <span>Qri Quantix</span>
+            <span className="text-[9px] px-1.5 py-0.2 bg-white/10 text-slate-300 rounded-full font-mono">
+              OS v2.0
+            </span>
+          </span>
+        </div>
 
-          {/* Navigation Links */}
-          <nav className="p-2 space-y-1 mt-2">
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              return (
+        <div className="flex items-center space-x-4 text-[11px] font-medium text-slate-400">
+          <span className="hidden md:inline">Procurement &amp; Commercial Engine</span>
+          <div className="flex items-center space-x-1.5 text-slate-300">
+            <span className="w-2 h-2 rounded-full bg-[#22C55E]"></span>
+            <span className="font-mono text-[10px]">Online • LocalStore</span>
+          </div>
+        </div>
+      </header>
+
+      {/* =========================================================================
+          MAIN FLOATING ISLAND CANVAS (Light Silver-Gray #EBEBF0)
+      ========================================================================= */}
+      <div className="flex-1 flex flex-col rounded-2xl sm:rounded-[28px] md:rounded-[32px] bg-[#EBEBF0] text-[#111216] shadow-2xl overflow-hidden border border-white/10 relative">
+        {/* Island Top Navigation Bar */}
+        <div className="h-14 sm:h-16 px-3 sm:px-5 bg-[#EBEBF0] border-b border-[#D8D8E0] flex items-center justify-between flex-shrink-0 z-30">
+          {/* Left: Quick Search Button & Brand Mark */}
+          <div className="flex items-center space-x-2.5">
+            <button
+              onClick={() => router.push('/settings/databank')}
+              className="w-9 h-9 rounded-full bg-[#111216] hover:bg-slate-800 text-white flex items-center justify-center shadow-md transition-transform active:scale-95 cursor-pointer flex-shrink-0"
+              title="Search Data Bank"
+            >
+              <Search className="w-4 h-4" />
+            </button>
+
+            {/* Desktop / Tablet Horizontal Pill Navigation */}
+            <nav className="hidden md:flex items-center space-x-1 bg-[#DFDFE6] p-1 rounded-full border border-[#D0D0DA]">
+              {navItems.map((item) => (
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-medium transition-all group ${
+                  className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all flex items-center space-x-1.5 ${
                     item.active
-                      ? 'bg-amber-500/15 text-amber-300 border border-amber-500/30 font-semibold shadow-sm'
-                      : 'text-slate-400 hover:text-slate-100 hover:bg-slate-900 border border-transparent'
+                      ? 'bg-[#FF4D6D] text-white shadow-sm shadow-[#FF4D6D]/30'
+                      : 'text-[#505460] hover:text-[#111216] hover:bg-[#D5D5DC]'
                   }`}
-                  title={item.label}
                 >
-                  <div className="flex items-center space-x-3">
-                    <Icon
-                      className={`w-4 h-4 transition-transform group-hover:scale-110 ${
-                        item.active ? 'text-amber-400' : 'text-slate-400 group-hover:text-slate-200'
+                  <span>{item.label}</span>
+                  {item.count !== undefined && item.count > 0 && (
+                    <span
+                      className={`text-[9px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
+                        item.active ? 'bg-white/20 text-white' : 'bg-slate-300 text-slate-800'
                       }`}
-                    />
-                    <span className="hidden md:inline">{item.label}</span>
-                  </div>
-
-                  {/* Badges / Counters */}
-                  <div className="hidden md:flex items-center">
-                    {item.badge && (
-                      <span className="text-[9px] bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded font-mono font-bold">
-                        {item.badge}
-                      </span>
-                    )}
-                    {item.count !== undefined && (
-                      <span className="text-[10px] bg-slate-800 text-slate-300 px-1.5 py-0.2 rounded font-mono">
-                        {item.count}
-                      </span>
-                    )}
-                  </div>
+                    >
+                      {item.count}
+                    </span>
+                  )}
                 </Link>
-              );
-            })}
-          </nav>
-        </div>
+              ))}
+            </nav>
+          </div>
 
-        {/* Bottom: User Card & Sign Out */}
-        <div className="p-2 border-t border-slate-800/80">
-          <div className="flex items-center justify-between p-2 rounded-lg bg-slate-900/60 border border-slate-800">
-            <div className="flex items-center space-x-2.5 overflow-hidden">
-              <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-amber-600 to-amber-400 flex items-center justify-center text-slate-950 font-bold text-xs flex-shrink-0">
+          {/* Right: User Avatar & Session Controls */}
+          <div className="flex items-center space-x-2.5">
+            <Link
+              href="/tools"
+              className="hidden lg:flex items-center space-x-1 px-3 py-1 rounded-full bg-[#111216] hover:bg-slate-800 text-white text-[11px] font-semibold transition-colors"
+            >
+              <Wrench className="w-3 h-3 text-[#FF4D6D]" />
+              <span>Tools</span>
+            </Link>
+
+            {/* User Profile Pill */}
+            <div className="flex items-center space-x-2 bg-white/80 border border-[#D5D5DF] pl-1 pr-2.5 py-1 rounded-full shadow-xs">
+              <div className="w-6 h-6 rounded-full bg-[#111216] text-[#FF4D6D] font-bold text-[10px] flex items-center justify-center">
                 {currentUser?.avatar || 'AK'}
               </div>
-              <div className="hidden md:block truncate">
-                <div className="text-xs font-bold text-slate-100 truncate">
-                  {currentUser?.name || 'Guest'}
-                </div>
-                <div className="text-[10px] text-amber-400/90 font-mono truncate">
-                  {currentUser?.role || 'Super Admin'}
-                </div>
-              </div>
+              <span className="text-xs font-bold text-[#111216] hidden sm:inline truncate max-w-[100px]">
+                {currentUser?.name || 'Ali Khan'}
+              </span>
             </div>
 
+            {/* Logout Trigger */}
             <button
               onClick={handleLogout}
-              className="p-1.5 text-slate-400 hover:text-rose-400 rounded hover:bg-slate-800 transition-colors"
+              className="w-8 h-8 rounded-full bg-white hover:bg-rose-50 text-slate-600 hover:text-rose-600 border border-[#D5D5DF] flex items-center justify-center transition-colors cursor-pointer"
               title="Sign Out"
             >
               <LogOut className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>
-      </aside>
 
-      {/* Main Page Content Area (Account for mobile bottom nav) */}
-      <div className="flex-1 flex flex-col h-[calc(100dvh-3.5rem)] md:h-[100dvh] overflow-hidden bg-slate-950">
-        {children}
+        {/* Content Workspace inside the Island Canvas */}
+        <div className="flex-1 flex flex-col overflow-hidden bg-[#EBEBF0]">
+          {children}
+        </div>
       </div>
 
-      {/* Mobile Bottom Navigation Bar (Natural Thumb Zone) */}
-      <nav className="md:hidden h-14 bg-slate-950/95 backdrop-blur-md border-t border-slate-800 px-2 flex items-center justify-around z-40 pb-[env(safe-area-inset-bottom)] flex-shrink-0">
+      {/* =========================================================================
+          MOBILE BOTTOM NAVIGATION (Natural Thumb Arc with Coral Active Indicator)
+      ========================================================================= */}
+      <nav className="md:hidden h-14 bg-[#101114]/95 backdrop-blur-md border-t border-slate-800/80 px-2 flex items-center justify-around z-40 pb-[env(safe-area-inset-bottom)] flex-shrink-0 mt-1">
         {navItems.map((item) => {
           const Icon = item.icon;
           return (
             <Link
               key={item.href}
               href={item.href}
-              className={`flex flex-col items-center justify-center flex-1 py-1 text-[10px] transition-colors relative ${
-                item.active ? 'text-amber-400 font-bold' : 'text-slate-400 hover:text-slate-200'
+              className={`flex flex-col items-center justify-center flex-1 py-1 text-[10px] transition-all relative ${
+                item.active ? 'text-[#FF4D6D] font-bold scale-105' : 'text-slate-400 hover:text-slate-200'
               }`}
             >
               <Icon className="w-4 h-4 mb-0.5" />
               <span>{item.shortLabel}</span>
               {item.count !== undefined && item.count > 0 && (
-                <span className="absolute top-1 right-3 w-3.5 h-3.5 rounded-full bg-amber-500 text-slate-950 text-[8px] font-mono font-bold flex items-center justify-center">
+                <span className="absolute top-0.5 right-3 w-3.5 h-3.5 rounded-full bg-[#FF4D6D] text-white text-[8px] font-mono font-bold flex items-center justify-center">
                   {item.count}
                 </span>
               )}
