@@ -4,6 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
+  LayoutDashboard,
   Sparkles,
   FolderKanban,
   Database,
@@ -30,6 +31,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const navItems = [
     {
+      href: '/',
+      label: 'Procurement Dashboard',
+      shortLabel: 'Home',
+      icon: LayoutDashboard,
+      active: pathname === '/',
+    },
+    {
       href: '/agent/quotation',
       label: 'Quotation Agent',
       shortLabel: 'Agent',
@@ -49,7 +57,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       label: 'Engineering Tools',
       shortLabel: 'Tools',
       icon: Wrench,
-      active: pathname === '/tools',
+      active: pathname.startsWith('/tools'),
     },
     {
       href: '/settings/databank',
@@ -84,7 +92,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <div className="flex flex-col items-center space-y-6 w-full">
           {/* Top Brand Logo */}
           <Link
-            href="/agent/quotation"
+            href="/"
             className="w-10 h-10 rounded-2xl bg-slate-950 hover:bg-[#FF4D6D] text-white flex items-center justify-center shadow-md transition-all active:scale-95"
             title="Qri Quantix OS"
           >
