@@ -1,0 +1,42 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #090d16;
+  --foreground: #f1f5f9;
+  --border: #1e293b;
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Custom compact scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #0b1120;
+}
+::-webkit-scrollbar-thumb {
+  background: #25334d;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #3b5074;
+}
+
+/* Excel-speed cell inputs */
+.grid-cell-input {
+  @apply bg-slate-900 border border-slate-700/60 rounded px-2 py-1 text-xs text-slate-100 font-mono transition-all focus:border-amber-400 focus:bg-slate-850 focus:outline-none;
+}
+
+.table-header-cell {
+  @apply px-3 py-2 text-left text-[11px] font-semibold tracking-wider text-slate-400 uppercase bg-slate-900/90 border-b border-slate-800;
+}
