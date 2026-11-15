@@ -5,7 +5,6 @@
 :root {
   --background: #090d16;
   --foreground: #f1f5f9;
-  --border: #1e293b;
 }
 
 body {
@@ -18,25 +17,36 @@ body {
 
 /* Custom compact scrollbars */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 ::-webkit-scrollbar-track {
-  background: #0b1120;
+  background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #25334d;
-  border-radius: 3px;
+  background: #334155;
+  border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #3b5074;
+  background: #475569;
 }
 
-/* Excel-speed cell inputs */
-.grid-cell-input {
-  @apply bg-slate-900 border border-slate-700/60 rounded px-2 py-1 text-xs text-slate-100 font-mono transition-all focus:border-amber-400 focus:bg-slate-850 focus:outline-none;
-}
-
-.table-header-cell {
-  @apply px-3 py-2 text-left text-[11px] font-semibold tracking-wider text-slate-400 uppercase bg-slate-900/90 border-b border-slate-800;
+/* Print styling for the Right Pane Quotation Document */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #quotation-printable-document, #quotation-printable-document * {
+    visibility: visible;
+  }
+  #quotation-printable-document {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    box-shadow: none !important;
+    border: none !important;
+  }
 }
