@@ -322,7 +322,7 @@ export default function MainDashboardPage() {
           {/* Card 2 CTA Buttons */}
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 pt-3 border-t border-slate-100">
             <Link
-              href="/cases"
+              href="/cases/new"
               className="flex-1 py-3 px-5 rounded-full bg-slate-900 hover:bg-black text-white text-xs sm:text-sm font-bold shadow-xs flex items-center justify-center space-x-2 transition-all cursor-pointer"
             >
               <FolderKanban className="w-4 h-4 text-blue-400" />

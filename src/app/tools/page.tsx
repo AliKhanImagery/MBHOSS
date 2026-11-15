@@ -118,6 +118,628 @@ function NoteCard({ icon, title, children, color = 'bg-blue-50/80 border-blue-20
   );
 }
 
+// ─── Instant 2D CAD Mechanical Tank Diagram ─────────────────────────────────
+interface TankCadDiagramProps {
+  diameter: number;
+  cylHeight: number;
+  coneHeight: number;
+  fillPct: number;
+  liquidType: 'WATER' | 'SYRUP' | 'CIP' | 'ALCOHOL';
+  liquidLiters: number;
+  totalLiters: number;
+  workingCapacityLiters: number;
+  liquidWeightKg: number;
+}
+
+function TankCadDiagram({
+  diameter,
+  cylHeight,
+  coneHeight,
+  fillPct,
+  liquidType,
+  liquidLiters,
+  totalLiters,
+  workingCapacityLiters,
+  liquidWeightKg,
+}: TankCadDiagramProps) {
+  // SVG Canvas: 440 wide, 520 tall
+  const centerX = 220;
+  const availH = 320;
+  const availW = 210;
+
+  const totalH = Math.max(cylHeight + coneHeight, 0.5);
+  const scale = Math.min(availH / (totalH + 0.6), availW / Math.max(diameter, 0.8));
+
+  const tankW = Math.max(diameter * scale, 75);
+  const cylHPx = Math.max(cylHeight * scale, 35);
+  const coneHPx = Math.max(coneHeight * scale, 0);
+  const dishHPx = Math.min(tankW * 0.15, 20);
+
+  const topY = 65 + (availH - (cylHPx + coneHPx)) / 2;
+  const cylTopY = topY + dishHPx;
+  const cylBottomY = cylTopY + cylHPx;
+  const coneBottomY = cylBottomY + coneHPx;
+  const leftX = centerX - tankW / 2;
+  const rightX = centerX + tankW / 2;
+
+  // Liquid Math
+  const radius = diameter / 2;
+  const cylVol = Math.PI * radius * radius * cylHeight;
+  const coneVol = (1 / 3) * Math.PI * radius * radius * coneHeight;
+  const totalVol = cylVol + coneVol;
+  const currentLiqVol = totalVol * (fillPct / 100);
+
+  let liquidTopY = cylBottomY;
+  let liquidPath = '';
+
+  if (fillPct > 0) {
+    if (coneHeight > 0 && currentLiqVol <= coneVol && coneVol > 0) {
+      const coneHeightRatio = Math.cbrt(Math.max(currentLiqVol / coneVol, 0.001));
+      const liqConeH = coneHPx * coneHeightRatio;
+      liquidTopY = coneBottomY - liqConeH;
+      const liqHalfW = (tankW / 2) * (liqConeH / Math.max(coneHPx, 1));
+      const liqLeftX = centerX - liqHalfW;
+      const liqRightX = centerX + liqHalfW;
+      liquidPath = `M ${centerX - 10} ${coneBottomY} L ${liqLeftX} ${liquidTopY} Q ${centerX} ${liquidTopY - 2} ${liqRightX} ${liquidTopY} L ${centerX + 10} ${coneBottomY} Z`;
+    } else {
+      const remVol = Math.max(currentLiqVol - coneVol, 0);
+      const cylFrac = cylVol > 0 ? Math.min(remVol / cylVol, 1) : 0;
+      const liqCylH = cylHPx * cylFrac;
+      liquidTopY = cylBottomY - liqCylH;
+
+      if (coneHeight > 0) {
+        liquidPath = `M ${leftX} ${liquidTopY} Q ${centerX} ${liquidTopY - 3} ${rightX} ${liquidTopY} L ${rightX} ${cylBottomY} L ${centerX + 10} ${coneBottomY} L ${centerX - 10} ${coneBottomY} L ${leftX} ${cylBottomY} Z`;
+      } else {
+        liquidPath = `M ${leftX} ${liquidTopY} Q ${centerX} ${liquidTopY - 3} ${rightX} ${liquidTopY} L ${rightX} ${cylBottomY} L ${leftX} ${cylBottomY} Z`;
+      }
+    }
+  }
+
+  const FLUID_CONFIG = {
+    WATER: {
+      gradStart: '#38BDF8',
+      gradEnd: '#0284C7',
+      label: 'Water / Aqueous',
+      tag: 'ρ = 1,000 kg/m³',
+      glow: '#0284C7',
+    },
+    SYRUP: {
+      gradStart: '#FBBF24',
+      gradEnd: '#D97706',
+      label: 'Sugar Syrup (65° Bx)',
+      tag: 'ρ = 1,280 kg/m³',
+      glow: '#D97706',
+    },
+    CIP: {
+      gradStart: '#34D399',
+      gradEnd: '#059669',
+      label: 'CIP Caustic Loop',
+      tag: 'ρ = 1,050 kg/m³',
+      glow: '#059669',
+    },
+    ALCOHOL: {
+      gradStart: '#A78BFA',
+      gradEnd: '#7C3AED',
+      label: 'Ethanol / Spirits',
+      tag: 'ρ = 789 kg/m³',
+      glow: '#7C3AED',
+    },
+  }[liquidType];
+
+  const workingVol = totalVol * 0.9;
+  let ullageY = cylTopY;
+  if (coneVol >= workingVol && coneVol > 0) {
+    const r = Math.cbrt(workingVol / coneVol);
+    ullageY = coneBottomY - coneHPx * r;
+  } else {
+    const rem = workingVol - coneVol;
+    const f = cylVol > 0 ? rem / cylVol : 0;
+    ullageY = cylBottomY - cylHPx * f;
+  }
+  const isOverfill = fillPct > 90;
+
+  return (
+    <div className="bg-[#0B132B] border border-slate-800 rounded-3xl p-5 shadow-xl text-slate-100 flex flex-col justify-between overflow-hidden relative">
+      {/* CAD Schematic Header */}
+      <div className="flex items-center justify-between border-b border-slate-800/80 pb-3 mb-2">
+        <div className="flex items-center space-x-2">
+          <div className="w-2.5 h-2.5 rounded-full bg-[#FF4D6D] animate-pulse"></div>
+          <div>
+            <div className="text-[11px] font-mono font-bold text-sky-400 tracking-wider">
+              2D CAD MECHANICAL SCHEMATIC
+            </div>
+            <div className="text-xs font-bold text-slate-200">
+              Orthographic Cross-Section (ASME BPE)
+            </div>
+          </div>
+        </div>
+        <div className="text-right font-mono">
+          <span className="text-[10px] text-slate-400 block">SCALE 1:25</span>
+          <span className="text-[11px] font-bold text-emerald-400">DWG: TK-2026</span>
+        </div>
+      </div>
+
+      {/* Warning if overfilled */}
+      {isOverfill && (
+        <div className="bg-rose-500/20 border border-rose-500/60 rounded-xl px-3 py-1.5 mb-2 flex items-center space-x-2 text-rose-300 text-xs animate-pulse">
+          <AlertTriangle className="w-4 h-4 text-rose-400 flex-shrink-0" />
+          <span><strong>Safety Cutoff Exceeded:</strong> Headspace &lt; 10% ullage limit. Risk of foam overflow into CIP vent!</span>
+        </div>
+      )}
+
+      {/* SVG Canvas */}
+      <div className="relative w-full aspect-[4/5] max-h-[480px] flex items-center justify-center">
+        <svg
+          viewBox="0 0 440 520"
+          className="w-full h-full select-none"
+          style={{ filter: 'drop-shadow(0px 10px 20px rgba(0,0,0,0.4))' }}
+        >
+          <defs>
+            <pattern id="cadGrid" width="20" height="20" patternUnits="userSpaceOnUse">
+              <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#1E293B" strokeWidth="0.5" />
+              <circle cx="20" cy="20" r="0.8" fill="#334155" />
+            </pattern>
+
+            <marker id="arrowStart" viewBox="0 0 10 10" refX="2" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+              <path d="M 10 1 L 0 5 L 10 9 z" fill="#38BDF8" />
+            </marker>
+            <marker id="arrowEnd" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+              <path d="M 0 1 L 10 5 L 0 9 z" fill="#38BDF8" />
+            </marker>
+
+            <linearGradient id="fluidGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={FLUID_CONFIG.gradStart} stopOpacity="0.85" />
+              <stop offset="100%" stopColor={FLUID_CONFIG.gradEnd} stopOpacity="0.95" />
+            </linearGradient>
+          </defs>
+
+          {/* Technical Grid Background */}
+          <rect x="0" y="0" width="440" height="520" fill="url(#cadGrid)" />
+
+          {/* Vertical Centerline (CAD Standard) */}
+          <line
+            x1={centerX}
+            y1="35"
+            x2={centerX}
+            y2={coneBottomY + 45}
+            stroke="#0284C7"
+            strokeWidth="0.8"
+            strokeDasharray="16 3 3 3"
+            opacity="0.6"
+          />
+
+          {/* Grade Ground Line */}
+          <line
+            x1="40"
+            y1={coneBottomY + 30}
+            x2="400"
+            y2={coneBottomY + 30}
+            stroke="#475569"
+            strokeWidth="1.5"
+            strokeDasharray="6 3"
+          />
+          <text x="330" y={coneBottomY + 44} fill="#64748B" fontSize="9" fontFamily="monospace">
+            ▼ FINISHED FLOOR
+          </text>
+
+          {/* Support Legs */}
+          <line
+            x1={leftX + 8}
+            y1={cylBottomY - 15}
+            x2={leftX - 12}
+            y2={coneBottomY + 30}
+            stroke="#94A3B8"
+            strokeWidth="5"
+            strokeLinecap="round"
+          />
+          <rect
+            x={leftX - 22}
+            y={coneBottomY + 28}
+            width="20"
+            height="4"
+            fill="#CBD5E1"
+            rx="1"
+          />
+
+          <line
+            x1={rightX - 8}
+            y1={cylBottomY - 15}
+            x2={rightX + 12}
+            y2={coneBottomY + 30}
+            stroke="#94A3B8"
+            strokeWidth="5"
+            strokeLinecap="round"
+          />
+          <rect
+            x={rightX + 2}
+            y={coneBottomY + 28}
+            width="20"
+            height="4"
+            fill="#CBD5E1"
+            rx="1"
+          />
+
+          {/* Dynamic Fluid Fill */}
+          {fillPct > 0 && liquidPath && (
+            <path
+              d={liquidPath}
+              fill="url(#fluidGrad)"
+              className="transition-all duration-300"
+              style={{ filter: `drop-shadow(0 0 12px ${FLUID_CONFIG.glow})` }}
+            />
+          )}
+
+          {/* Top Dished Head */}
+          <path
+            d={`M ${leftX} ${cylTopY} Q ${centerX} ${cylTopY - dishHPx * 2} ${rightX} ${cylTopY}`}
+            fill="none"
+            stroke="#38BDF8"
+            strokeWidth="2.5"
+          />
+
+          {/* Tank Cylinder Shell */}
+          <line
+            x1={leftX}
+            y1={cylTopY}
+            x2={leftX}
+            y2={cylBottomY}
+            stroke="#38BDF8"
+            strokeWidth="2.5"
+          />
+          <line
+            x1={rightX}
+            y1={cylTopY}
+            x2={rightX}
+            y2={cylBottomY}
+            stroke="#38BDF8"
+            strokeWidth="2.5"
+          />
+
+          {/* Conical Bottom */}
+          {coneHeight > 0 ? (
+            <>
+              <line
+                x1={leftX}
+                y1={cylBottomY}
+                x2={centerX - 10}
+                y2={coneBottomY}
+                stroke="#38BDF8"
+                strokeWidth="2.5"
+              />
+              <line
+                x1={rightX}
+                y1={cylBottomY}
+                x2={centerX + 10}
+                y2={coneBottomY}
+                stroke="#38BDF8"
+                strokeWidth="2.5"
+              />
+              {/* Bottom Discharge Nozzle */}
+              <rect
+                x={centerX - 10}
+                y={coneBottomY}
+                width="20"
+                height="18"
+                fill="#1E293B"
+                stroke="#38BDF8"
+                strokeWidth="1.5"
+              />
+              <polygon
+                points={`${centerX - 12},${coneBottomY + 18} ${centerX + 12},${coneBottomY + 18} ${centerX + 12},${coneBottomY + 22} ${centerX - 12},${coneBottomY + 22}`}
+                fill="#38BDF8"
+              />
+              {/* Valve Symbol */}
+              <polygon
+                points={`${centerX - 8},${coneBottomY + 6} ${centerX + 8},${coneBottomY + 12} ${centerX + 8},${coneBottomY + 6} ${centerX - 8},${coneBottomY + 12}`}
+                fill="#0284C7"
+              />
+            </>
+          ) : (
+            <line
+              x1={leftX}
+              y1={cylBottomY}
+              x2={rightX}
+              y2={cylBottomY}
+              stroke="#38BDF8"
+              strokeWidth="2.5"
+            />
+          )}
+
+          {/* Top Nozzle Fittings */}
+          <rect
+            x={centerX - 16}
+            y={cylTopY - dishHPx - 14}
+            width="32"
+            height="12"
+            fill="#1E293B"
+            stroke="#38BDF8"
+            strokeWidth="1.5"
+            rx="2"
+          />
+          <text
+            x={centerX}
+            y={cylTopY - dishHPx - 18}
+            fill="#94A3B8"
+            fontSize="8"
+            fontFamily="monospace"
+            textAnchor="middle"
+          >
+            DN400 MANWAY
+          </text>
+
+          {/* CIP Spray Ball Assembly */}
+          <line
+            x1={centerX - 35}
+            y1={cylTopY - dishHPx - 8}
+            x2={centerX - 35}
+            y2={cylTopY + 16}
+            stroke="#0284C7"
+            strokeWidth="1.5"
+          />
+          <circle cx={centerX - 35} cy={cylTopY + 16} r="4" fill="#38BDF8" />
+          <path
+            d={`M ${centerX - 42} ${cylTopY + 22} L ${centerX - 46} ${cylTopY + 26} M ${centerX - 28} ${cylTopY + 22} L ${centerX - 24} ${cylTopY + 26}`}
+            stroke="#38BDF8"
+            strokeWidth="1"
+            strokeDasharray="2 2"
+          />
+
+          {/* 10% Ullage Cutoff Line */}
+          <line
+            x1={leftX + 2}
+            y1={ullageY}
+            x2={rightX - 2}
+            y2={ullageY}
+            stroke="#F43F5E"
+            strokeWidth="1.5"
+            strokeDasharray="5 3"
+          />
+          <text
+            x={rightX - 4}
+            y={ullageY - 4}
+            fill="#F43F5E"
+            fontSize="8"
+            fontFamily="monospace"
+            fontWeight="bold"
+            textAnchor="end"
+          >
+            ▲ 10% ULLAGE (90%)
+          </text>
+
+          {/* ================================================================
+              CAD DIMENSION LINES & CALLOUT ARROWS
+          ================================================================ */}
+          {/* Top Diameter Dimension */}
+          <g>
+            <line
+              x1={leftX}
+              y1={cylTopY - 18}
+              x2={rightX}
+              y2={cylTopY - 18}
+              stroke="#38BDF8"
+              strokeWidth="1.2"
+              markerStart="url(#arrowStart)"
+              markerEnd="url(#arrowEnd)"
+            />
+            <line x1={leftX} y1={cylTopY} x2={leftX} y2={cylTopY - 24} stroke="#475569" strokeWidth="0.8" />
+            <line x1={rightX} y1={cylTopY} x2={rightX} y2={cylTopY - 24} stroke="#475569" strokeWidth="0.8" />
+            <rect
+              x={centerX - 34}
+              y={cylTopY - 26}
+              width="68"
+              height="14"
+              fill="#0B132B"
+              rx="3"
+            />
+            <text
+              x={centerX}
+              y={cylTopY - 16}
+              fill="#38BDF8"
+              fontSize="9"
+              fontFamily="monospace"
+              fontWeight="bold"
+              textAnchor="middle"
+            >
+              Ø {diameter.toFixed(2)} m ID
+            </text>
+          </g>
+
+          {/* Cylinder Height Dimension */}
+          <g>
+            <line
+              x1={leftX - 22}
+              y1={cylTopY}
+              x2={leftX - 22}
+              y2={cylBottomY}
+              stroke="#38BDF8"
+              strokeWidth="1.2"
+              markerStart="url(#arrowStart)"
+              markerEnd="url(#arrowEnd)"
+            />
+            <line x1={leftX} y1={cylTopY} x2={leftX - 28} y2={cylTopY} stroke="#475569" strokeWidth="0.8" />
+            <line x1={leftX} y1={cylBottomY} x2={leftX - 28} y2={cylBottomY} stroke="#475569" strokeWidth="0.8" />
+            <text
+              x={leftX - 28}
+              y={(cylTopY + cylBottomY) / 2}
+              fill="#38BDF8"
+              fontSize="9"
+              fontFamily="monospace"
+              fontWeight="bold"
+              textAnchor="end"
+              dominantBaseline="middle"
+            >
+              H₁={cylHeight.toFixed(1)}m
+            </text>
+          </g>
+
+          {/* Cone Height Dimension */}
+          {coneHeight > 0 && (
+            <g>
+              <line
+                x1={leftX - 22}
+                y1={cylBottomY}
+                x2={leftX - 22}
+                y2={coneBottomY}
+                stroke="#38BDF8"
+                strokeWidth="1.2"
+                markerStart="url(#arrowStart)"
+                markerEnd="url(#arrowEnd)"
+              />
+              <line x1={centerX - 10} y1={coneBottomY} x2={leftX - 28} y2={coneBottomY} stroke="#475569" strokeWidth="0.8" />
+              <text
+                x={leftX - 28}
+                y={(cylBottomY + coneBottomY) / 2}
+                fill="#38BDF8"
+                fontSize="9"
+                fontFamily="monospace"
+                fontWeight="bold"
+                textAnchor="end"
+                dominantBaseline="middle"
+              >
+                H₂={coneHeight.toFixed(2)}m
+              </text>
+            </g>
+          )}
+
+          {/* Total Overall Height */}
+          <g>
+            <line
+              x1={leftX - 58}
+              y1={topY}
+              x2={leftX - 58}
+              y2={coneBottomY}
+              stroke="#0284C7"
+              strokeWidth="1.2"
+              markerStart="url(#arrowStart)"
+              markerEnd="url(#arrowEnd)"
+            />
+            <line x1={leftX} y1={topY} x2={leftX - 64} y2={topY} stroke="#334155" strokeWidth="0.8" />
+            <line x1={centerX - 10} y1={coneBottomY} x2={leftX - 64} y2={coneBottomY} stroke="#334155" strokeWidth="0.8" />
+            <text
+              x={leftX - 64}
+              y={(topY + coneBottomY) / 2}
+              fill="#0284C7"
+              fontSize="10"
+              fontFamily="monospace"
+              fontWeight="bold"
+              textAnchor="end"
+              dominantBaseline="middle"
+              transform={`rotate(-90, ${leftX - 64}, ${(topY + coneBottomY) / 2})`}
+            >
+              H_TOT = {(cylHeight + coneHeight).toFixed(2)} m
+            </text>
+          </g>
+
+          {/* Current Liquid Meniscus Callout */}
+          {fillPct > 0 && (
+            <g>
+              <line
+                x1={rightX}
+                y1={liquidTopY}
+                x2={rightX + 25}
+                y2={liquidTopY}
+                stroke="#F59E0B"
+                strokeWidth="1.2"
+                strokeDasharray="3 2"
+              />
+              <line
+                x1={rightX + 25}
+                y1={liquidTopY}
+                x2={rightX + 40}
+                y2={liquidTopY - 12}
+                stroke="#F59E0B"
+                strokeWidth="1.2"
+              />
+              <rect
+                x={rightX + 40}
+                y={liquidTopY - 24}
+                width="85"
+                height="24"
+                fill="#1E293B"
+                stroke="#F59E0B"
+                strokeWidth="1"
+                rx="4"
+              />
+              <text
+                x={rightX + 45}
+                y={liquidTopY - 14}
+                fill="#FBBF24"
+                fontSize="9"
+                fontFamily="monospace"
+                fontWeight="bold"
+              >
+                LEVEL: {fillPct}%
+              </text>
+              <text
+                x={rightX + 45}
+                y={liquidTopY - 4}
+                fill="#94A3B8"
+                fontSize="8"
+                fontFamily="monospace"
+              >
+                {Math.round(liquidLiters).toLocaleString()} L
+              </text>
+            </g>
+          )}
+
+          {/* Technical Drawing Stamp */}
+          <g transform="translate(290, 435)">
+            <rect
+              x="0"
+              y="0"
+              width="140"
+              height="70"
+              fill="#0F172A"
+              stroke="#334155"
+              strokeWidth="1"
+              rx="2"
+            />
+            <line x1="0" y1="20" x2="140" y2="20" stroke="#334155" strokeWidth="0.8" />
+            <line x1="0" y1="42" x2="140" y2="42" stroke="#334155" strokeWidth="0.8" />
+            <text x="6" y="14" fill="#38BDF8" fontSize="8" fontFamily="monospace" fontWeight="bold">
+              ASME BPE • 3-A SANITARY
+            </text>
+            <text x="6" y="32" fill="#94A3B8" fontSize="7.5" fontFamily="monospace">
+              MAT: SS 316L (Contact)
+            </text>
+            <text x="6" y="39" fill="#94A3B8" fontSize="7" fontFamily="monospace">
+              ROUGH: Ra &lt; 0.4µm EP
+            </text>
+            <text x="6" y="55" fill="#38BDF8" fontSize="7.5" fontFamily="monospace">
+              FLUID: {liquidType}
+            </text>
+            <text x="6" y="63" fill="#64748B" fontSize="7" fontFamily="monospace">
+              {FLUID_CONFIG.tag}
+            </text>
+          </g>
+        </svg>
+      </div>
+
+      {/* Real-time Technical Telemetry Bar */}
+      <div className="grid grid-cols-3 gap-2 pt-3 border-t border-slate-800/80 mt-2 font-mono text-[10px]">
+        <div className="bg-slate-900/80 p-2 rounded-xl border border-slate-800">
+          <span className="text-slate-400 block uppercase">Liquid Mass</span>
+          <span className="text-emerald-400 font-bold text-xs mt-0.5 block">
+            {(liquidWeightKg / 1000).toFixed(2)} MT
+          </span>
+        </div>
+        <div className="bg-slate-900/80 p-2 rounded-xl border border-slate-800">
+          <span className="text-slate-400 block uppercase">Headspace</span>
+          <span className={`font-bold text-xs mt-0.5 block ${isOverfill ? 'text-rose-400' : 'text-sky-400'}`}>
+            {(100 - fillPct)}% Ullage
+          </span>
+        </div>
+        <div className="bg-slate-900/80 p-2 rounded-xl border border-slate-800">
+          <span className="text-slate-400 block uppercase">Working Cap</span>
+          <span className="text-amber-400 font-bold text-xs mt-0.5 block">
+            {Math.round(workingCapacityLiters / 1000)} kL
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 function ToolsContent() {
   const router = useRouter();
@@ -426,81 +1048,101 @@ function ToolsContent() {
           <div className="flex-1 overflow-y-auto space-y-6 pr-1">
 
             {/* ================================================================
-                TOOL 1 — TANK VOLUME & CAPACITY SIZER
+                TOOL 1 — TANK VOLUME & CAPACITY SIZER (DUAL-PANE CAD BLUEPRINT)
                 Standards: EHEDG Doc. 9, 3-A Sanitary Standard 20-28,
                            DIN 28050, ASME BPE-2022
             ================================================================ */}
             {activeTool === 'tank' && (
-              <div className="max-w-4xl space-y-5">
-                {/* Presets */}
-                <div className="flex items-center flex-wrap gap-2">
-                  <span className="text-xs text-slate-400 font-bold mr-1">Standard Presets:</span>
-                  {[
-                    { name: '5,000L', d: 1.6, hCyl: 2.6, hCone: 0.5 },
-                    { name: '10,000L', d: 2.2, hCyl: 2.8, hCone: 0.6 },
-                    { name: '25,000L', d: 2.8, hCyl: 4.2, hCone: 0.8 },
-                    { name: '50,000L', d: 3.6, hCyl: 5.0, hCone: 1.0 },
-                    { name: '100,000L', d: 4.4, hCyl: 7.0, hCone: 1.2 },
-                  ].map((p) => (
-                    <button key={p.name}
-                      onClick={() => { setTankDiameter(p.d); setTankCylHeight(p.hCyl); setTankConeHeight(p.hCone); }}
-                      className="px-3 py-1 rounded-full text-xs font-semibold bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 transition-colors"
-                    >{p.name}</button>
-                  ))}
-                </div>
+              <div className="w-full space-y-5">
+                <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 items-start">
+                  {/* Left Column (7 cols): Presets, Sliders, and Metric Cards */}
+                  <div className="xl:col-span-7 space-y-5">
+                    {/* Presets */}
+                    <div className="flex items-center flex-wrap gap-2">
+                      <span className="text-xs text-slate-400 font-bold mr-1">Standard Presets:</span>
+                      {[
+                        { name: '5,000L', d: 1.6, hCyl: 2.6, hCone: 0.5 },
+                        { name: '10,000L', d: 2.2, hCyl: 2.8, hCone: 0.6 },
+                        { name: '25,000L', d: 2.8, hCyl: 4.2, hCone: 0.8 },
+                        { name: '50,000L', d: 3.6, hCyl: 5.0, hCone: 1.0 },
+                        { name: '100,000L', d: 4.4, hCyl: 7.0, hCone: 1.2 },
+                      ].map((p) => (
+                        <button key={p.name}
+                          onClick={() => { setTankDiameter(p.d); setTankCylHeight(p.hCyl); setTankConeHeight(p.hCone); }}
+                          className="px-3 py-1 rounded-full text-xs font-semibold bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 transition-colors"
+                        >{p.name}</button>
+                      ))}
+                    </div>
 
-                {/* Inputs Card */}
-                <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs space-y-6">
-                  <h2 className="text-lg font-bold text-slate-900 flex items-center space-x-2 pb-3 border-b border-slate-100">
-                    <Layers className="w-5 h-5 text-blue-600" />
-                    <span>Tank Dimensions & Process Fluid</span>
-                  </h2>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <SliderRow label="Internal Diameter" value={tankDiameter} min={0.5} max={5.0} step={0.05} unit="m"
-                      note="Typical beverage tanks: 1.0m (5kL) to 4.5m (100kL)"
-                      onChange={setTankDiameter} formatValue={(v) => v.toFixed(2)} />
-                    <SliderRow label="Cylinder Shell Height" value={tankCylHeight} min={0.5} max={8.0} step={0.1} unit="m"
-                      note="Practical height-to-diameter ratio: 1.0–2.5× for stability"
-                      onChange={setTankCylHeight} formatValue={(v) => v.toFixed(1)} />
-                    <SliderRow label="Conical Bottom Height" value={tankConeHeight} min={0} max={1.5} step={0.05} unit="m"
-                      note="0.3–0.6m cone ensures full CIP drainage (EHEDG guideline)"
-                      onChange={setTankConeHeight} formatValue={(v) => v.toFixed(2)} />
-                    <SliderRow label="Current Fill Level" value={tankFillPct} min={0} max={100} step={1} unit="%"
-                      note="Working capacity limited to 90% (10% ullage / headspace standard)"
-                      onChange={setTankFillPct} />
+                    {/* Inputs Card */}
+                    <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs space-y-6">
+                      <h2 className="text-lg font-bold text-slate-900 flex items-center space-x-2 pb-3 border-b border-slate-100">
+                        <Layers className="w-5 h-5 text-blue-600" />
+                        <span>Tank Dimensions &amp; Process Fluid</span>
+                      </h2>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <SliderRow label="Internal Diameter" value={tankDiameter} min={0.5} max={5.0} step={0.05} unit="m"
+                          note="Typical beverage tanks: 1.0m (5kL) to 4.5m (100kL)"
+                          onChange={setTankDiameter} formatValue={(v) => v.toFixed(2)} />
+                        <SliderRow label="Cylinder Shell Height" value={tankCylHeight} min={0.5} max={8.0} step={0.1} unit="m"
+                          note="Practical height-to-diameter ratio: 1.0–2.5× for stability"
+                          onChange={setTankCylHeight} formatValue={(v) => v.toFixed(1)} />
+                        <SliderRow label="Conical Bottom Height" value={tankConeHeight} min={0} max={1.5} step={0.05} unit="m"
+                          note="0.3–0.6m cone ensures full CIP drainage (EHEDG guideline)"
+                          onChange={setTankConeHeight} formatValue={(v) => v.toFixed(2)} />
+                        <SliderRow label="Current Fill Level" value={tankFillPct} min={0} max={100} step={1} unit="%"
+                          note="Working capacity limited to 90% (10% ullage / headspace standard)"
+                          onChange={setTankFillPct} />
+                      </div>
+                      <div>
+                        <span className="text-xs font-bold text-slate-700 uppercase tracking-wider block mb-2">Process Fluid</span>
+                        <PillGroup
+                          options={[
+                            { label: 'Water / Beverage', value: 'WATER', sub: '1,000 kg/m³' },
+                            { label: 'Syrup 65° Brix', value: 'SYRUP', sub: '1,280 kg/m³' },
+                            { label: 'CIP Caustic', value: 'CIP', sub: '1,050 kg/m³' },
+                            { label: 'Ethanol / Spirit', value: 'ALCOHOL', sub: '789 kg/m³' },
+                          ]}
+                          value={liquidType}
+                          onChange={(v) => setLiquidType(v as typeof liquidType)}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Results StatCards */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                      <StatCard label="Total Geometric Volume" value={`${Math.round(totalTankLiters).toLocaleString()} L`} sub={`${totalTankVolM3.toFixed(2)} m³`} />
+                      <StatCard label="Working Capacity (90%)" value={`${Math.round(workingCapacityLiters).toLocaleString()} L`} sub="10% ullage headspace" accent="green" />
+                      <StatCard label="Liquid Weight @ Fill" value={`${Math.round(liquidWeightKg).toLocaleString()} kg`} sub={`${(liquidWeightKg / 1000).toFixed(1)} metric tons`} />
+                      <StatCard label="SS Shell Surface Area" value={`${shellSurfaceAreaM2.toFixed(1)} m²`} sub="Cylinder + Cone + Top" />
+                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                      <StatCard label="Current Fill Volume" value={`${Math.round(currentFillLiters).toLocaleString()} L`} sub={`${tankFillPct}% of total`} accent="blue" />
+                      <StatCard label="CIP Min Flow Req." value={`${Math.round(cipFlowRequiredLmin)} L/min`} sub="25 L/min per m² (EHEDG)" accent="amber" />
+                      <StatCard label="H/D Aspect Ratio" value={(tankCylHeight / tankDiameter).toFixed(2)} sub={tankCylHeight / tankDiameter >= 1 && tankCylHeight / tankDiameter <= 2.5 ? '✓ Structurally sound' : '⚠ Check structural design'} />
+                    </div>
+
+                    <NoteCard icon={<Info className="w-5 h-5 text-blue-600" />} title="Geometry &amp; Design Standard">
+                      <p className="text-xs font-mono text-blue-900 font-bold">V_total = (π × R² × H_cyl) + (⅓ × π × R² × H_cone)</p>
+                      <p className="text-xs text-blue-800 leading-relaxed">Conical bottoms (30–45° half-angle) ensure 100% hygienic CIP drainage. 10% ullage prevents liquid surge during agitation. Per EHEDG Doc. 9 / 3-A Standard 20-28.</p>
+                    </NoteCard>
                   </div>
-                  <div>
-                    <span className="text-xs font-bold text-slate-700 uppercase tracking-wider block mb-2">Process Fluid</span>
-                    <PillGroup
-                      options={[
-                        { label: 'Water / Beverage', value: 'WATER', sub: '1,000 kg/m³' },
-                        { label: 'Syrup 65° Brix', value: 'SYRUP', sub: '1,280 kg/m³' },
-                        { label: 'CIP Caustic', value: 'CIP', sub: '1,050 kg/m³' },
-                        { label: 'Ethanol / Spirit', value: 'ALCOHOL', sub: '789 kg/m³' },
-                      ]}
-                      value={liquidType}
-                      onChange={(v) => setLiquidType(v as typeof liquidType)}
+
+                  {/* Right Column (5 cols): Instant 2D CAD Mechanical Diagram */}
+                  <div className="xl:col-span-5 sticky top-2">
+                    <TankCadDiagram
+                      diameter={tankDiameter}
+                      cylHeight={tankCylHeight}
+                      coneHeight={tankConeHeight}
+                      fillPct={tankFillPct}
+                      liquidType={liquidType}
+                      liquidLiters={currentFillLiters}
+                      totalLiters={totalTankLiters}
+                      workingCapacityLiters={workingCapacityLiters}
+                      liquidWeightKg={liquidWeightKg}
                     />
                   </div>
                 </div>
-
-                {/* Results */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  <StatCard label="Total Geometric Volume" value={`${Math.round(totalTankLiters).toLocaleString()} L`} sub={`${totalTankVolM3.toFixed(2)} m³`} />
-                  <StatCard label="Working Capacity (90%)" value={`${Math.round(workingCapacityLiters).toLocaleString()} L`} sub="10% ullage headspace" accent="green" />
-                  <StatCard label="Liquid Weight @ Fill" value={`${Math.round(liquidWeightKg).toLocaleString()} kg`} sub={`${(liquidWeightKg / 1000).toFixed(1)} metric tons`} />
-                  <StatCard label="SS Shell Surface Area" value={`${shellSurfaceAreaM2.toFixed(1)} m²`} sub="Cylinder + Cone + Top" />
-                </div>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                  <StatCard label="Current Fill Volume" value={`${Math.round(currentFillLiters).toLocaleString()} L`} sub={`${tankFillPct}% of total`} accent="blue" />
-                  <StatCard label="CIP Min Flow Req." value={`${Math.round(cipFlowRequiredLmin)} L/min`} sub="25 L/min per m² (EHEDG)" accent="amber" />
-                  <StatCard label="H/D Aspect Ratio" value={(tankCylHeight / tankDiameter).toFixed(2)} sub={tankCylHeight / tankDiameter >= 1 && tankCylHeight / tankDiameter <= 2.5 ? '✓ Structurally sound' : '⚠ Check structural design'} />
-                </div>
-
-                <NoteCard icon={<Info className="w-5 h-5 text-blue-600" />} title="Geometry & Design Standard">
-                  <p className="text-xs font-mono text-blue-900 font-bold">V_total = (π × R² × H_cyl) + (⅓ × π × R² × H_cone)</p>
-                  <p className="text-xs text-blue-800 leading-relaxed">Conical bottoms (30–45° half-angle) ensure 100% hygienic CIP drainage. 10% ullage prevents liquid surge during agitation. Per EHEDG Doc. 9 / 3-A Standard 20-28.</p>
-                </NoteCard>
               </div>
             )}
 
