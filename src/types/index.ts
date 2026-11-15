@@ -83,4 +83,12 @@ export interface AgentApiResponse {
   chat_response: string;
   template_state: QuotationTemplate;
   system_log?: string;
+  compliance_warning?: string;
+}
+
+export interface TemplateSettingsState {
+  globalLetterheadPdf: string | null;
+  letterheadFileName: string;
+  masterTemplateRules: string;
+  lastUpdated: string;
 }

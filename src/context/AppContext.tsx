@@ -110,11 +110,28 @@ export const DEFAULT_TEMPLATE: QuotationTemplate = {
   ],
 };
 
+export const DEFAULT_MASTER_TEMPLATE_RULES = `STANDARD COMMERCIAL RULES & MANDATORY TERMS (OOS MASTER TEMPLATE):
+1. PAYMENT TERMS: Standard terms are 100% Advance Against Proforma Invoice, or 50% Advance with 50% Balance on Delivery. Any credit term exceeding 30 Days (e.g. 60 Days or 90 Days Credit) is strictly prohibited without written CFO/CTO approval.
+2. DELIVERY TERMS: Standard ex-stock delivery is 1-3 business days. Indent / import items are 2-4 weeks standard air freight. Unrealistic delivery commitments (e.g. same-day delivery or >6 weeks without indent contract) violate template policy.
+3. QUOTATION VALIDITY: Standard price validity is strictly 7 calendar days due to import rate and PKR/USD currency volatility. Quoting validity exceeding 15 days is prohibited.
+4. TARGET PROFIT MARGIN: Minimum baseline margin is 12%. Recommended operational target margin is 15% to 20%. Margins below 10% require management override.
+5. TAX REGIME: Domestic tenders default to without GST unless client specifies sales tax invoice (+18% GST). Invoices requiring WHT deduction must be grossed up.
+6. WARRANTY: Standard 12 months manufacturer warranty against manufacturing defects only.
+7. PENALTIES: Late delivery penalties or liquidated damages (LD clauses) are not accepted.`;
+
 interface AppContextType {
   // Auth
   currentUser: User | null;
   loginAsAliKhan: () => void;
   logout: () => void;
+
+  // Template Settings & Rules
+  globalLetterheadPdf: string | null;
+  letterheadFileName: string;
+  setGlobalLetterheadPdf: (pdfDataUrl: string | null, fileName?: string) => void;
+  masterTemplateRules: string;
+  setMasterTemplateRules: (rules: string) => void;
+  resetMasterTemplateRules: () => void;
 
   // Data Bank
   dataBank: DataBankItem[];
@@ -173,6 +190,54 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (typeof window !== 'undefined') {
       localStorage.removeItem('qri_user');
     }
+  };
+
+  // 1b. Template Settings & Master Rules State
+  const [globalLetterheadPdf, setGlobalLetterheadPdfState] = useState<string | null>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('qri_letterhead_pdf');
+    }
+    return null;
+  });
+
+  const [letterheadFileName, setLetterheadFileName] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('qri_letterhead_filename') || '';
+    }
+    return '';
+  });
+
+  const [masterTemplateRules, setMasterTemplateRulesState] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('master_template_rules');
+      if (stored) return stored;
+    }
+    return DEFAULT_MASTER_TEMPLATE_RULES;
+  });
+
+  const setGlobalLetterheadPdf = (pdfDataUrl: string | null, fileName: string = '') => {
+    setGlobalLetterheadPdfState(pdfDataUrl);
+    setLetterheadFileName(fileName);
+    if (typeof window !== 'undefined') {
+      if (pdfDataUrl) {
+        localStorage.setItem('qri_letterhead_pdf', pdfDataUrl);
+        localStorage.setItem('qri_letterhead_filename', fileName);
+      } else {
+        localStorage.removeItem('qri_letterhead_pdf');
+        localStorage.removeItem('qri_letterhead_filename');
+      }
+    }
+  };
+
+  const setMasterTemplateRules = (rules: string) => {
+    setMasterTemplateRulesState(rules);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('master_template_rules', rules);
+    }
+  };
+
+  const resetMasterTemplateRules = () => {
+    setMasterTemplateRules(DEFAULT_MASTER_TEMPLATE_RULES);
   };
 
   // 2. Data Bank State
@@ -567,6 +632,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         currentUser,
         loginAsAliKhan,
         logout,
+        globalLetterheadPdf,
+        letterheadFileName,
+        setGlobalLetterheadPdf,
+        masterTemplateRules,
+        setMasterTemplateRules,
+        resetMasterTemplateRules,
         dataBank,
         addDataBankItem,
         updateDataBankItem,

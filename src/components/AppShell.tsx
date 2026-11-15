@@ -13,6 +13,7 @@ import {
   Layers,
   ChevronRight,
   ShieldAlert,
+  FileCog,
 } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 
@@ -46,6 +47,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       label: 'Data Bank',
       icon: Database,
       active: pathname === '/settings/databank',
+    },
+    {
+      href: '/settings/templates',
+      label: 'Template Rules',
+      icon: FileCog,
+      active: pathname === '/settings/templates',
+      badge: 'Rules',
     },
     {
       href: '/settings/users',
