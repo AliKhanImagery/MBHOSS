@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import {
   Wrench, Calculator, Truck, ArrowRightLeft, CheckCircle2,
   AlertTriangle, Info, Layers, Activity, Zap, ArrowLeft,
-  Search, ChevronRight, Thermometer,
+  Search, ChevronRight, Thermometer, Hammer, ShieldCheck, DollarSign, Scale,
 } from 'lucide-react';
 
 type ToolId = 'tank' | 'pipe' | 'wht' | 'incoterm' | 'crossref' | 'motor';
@@ -119,6 +119,9 @@ function NoteCard({ icon, title, children, color = 'bg-blue-50/80 border-blue-20
 }
 
 // ─── Instant 2D CAD Mechanical Tank Diagram ─────────────────────────────────
+export type TankStyle = 'CONICAL' | 'TORISPHERICAL' | 'SLOPED_FLAT';
+export type TankMaterial = 'SS_316L' | 'SS_304' | 'CARBON_STEEL' | 'DUPLEX_2205';
+
 interface TankCadDiagramProps {
   diameter: number;
   cylHeight: number;
@@ -130,6 +133,11 @@ interface TankCadDiagramProps {
   totalLiters: number;
   workingCapacityLiters: number;
   liquidWeightKg: number;
+  tankStyle: TankStyle;
+  materialType: TankMaterial;
+  plateThicknessMm: number;
+  drySteelKg: number;
+  estTankPricePkr: number;
 }
 
 function TankCadDiagram({
@@ -143,6 +151,11 @@ function TankCadDiagram({
   totalLiters,
   workingCapacityLiters,
   liquidWeightKg,
+  tankStyle,
+  materialType,
+  plateThicknessMm,
+  drySteelKg,
+  estTankPricePkr,
 }: TankCadDiagramProps) {
   // SVG Canvas: 520 wide, 540 tall (High-Definition CAD Layout)
   const centerX = 235;
@@ -156,9 +169,9 @@ function TankCadDiagram({
 
   const tankW = Math.max(diameter * scale, 90);
   const cylHPx = Math.max(cylHeight * scale, 45);
-  const coneHPx = Math.max(coneHeight * scale, 0);
-  const legHPx = Math.max(legHeight * scale, 24);
   const dishHPx = Math.min(tankW * 0.14, 26);
+  const coneHPx = tankStyle === 'CONICAL' ? Math.max(coneHeight * scale, 15) : tankStyle === 'TORISPHERICAL' ? dishHPx * 1.5 : 22;
+  const legHPx = Math.max(legHeight * scale, 24);
 
   const tankTotalVisualH = cylHPx + coneHPx + legHPx + dishHPx;
   const baseFloorY = 462;
@@ -175,7 +188,7 @@ function TankCadDiagram({
   // Liquid Math
   const radius = diameter / 2;
   const cylVol = Math.PI * radius * radius * cylHeight;
-  const coneVol = (1 / 3) * Math.PI * radius * radius * coneHeight;
+  const coneVol = tankStyle === 'CONICAL' ? (1 / 3) * Math.PI * radius * radius * coneHeight : (0.0847 * diameter ** 3);
   const totalVol = cylVol + coneVol;
   const currentLiqVol = totalVol * (fillPct / 100);
 
@@ -183,24 +196,32 @@ function TankCadDiagram({
   let liquidPath = '';
 
   if (fillPct > 0) {
-    if (coneHeight > 0 && currentLiqVol <= coneVol && coneVol > 0) {
+    if (currentLiqVol <= coneVol && coneVol > 0) {
       const coneHeightRatio = Math.cbrt(Math.max(currentLiqVol / coneVol, 0.001));
       const liqConeH = coneHPx * coneHeightRatio;
       liquidTopY = coneBottomY - liqConeH;
       const liqHalfW = (tankW / 2) * (liqConeH / Math.max(coneHPx, 1));
       const liqLeftX = centerX - liqHalfW;
       const liqRightX = centerX + liqHalfW;
-      liquidPath = `M ${centerX - 12} ${coneBottomY} L ${liqLeftX} ${liquidTopY} Q ${centerX} ${liquidTopY - 2} ${liqRightX} ${liquidTopY} L ${centerX + 12} ${coneBottomY} Z`;
+      if (tankStyle === 'CONICAL') {
+        liquidPath = `M ${centerX - 12} ${coneBottomY} L ${liqLeftX} ${liquidTopY} Q ${centerX} ${liquidTopY - 2} ${liqRightX} ${liquidTopY} L ${centerX + 12} ${coneBottomY} Z`;
+      } else if (tankStyle === 'TORISPHERICAL') {
+        liquidPath = `M ${leftX} ${liquidTopY} Q ${centerX} ${coneBottomY} ${rightX} ${liquidTopY} Z`;
+      } else {
+        liquidPath = `M ${leftX} ${liquidTopY} L ${rightX} ${liquidTopY} L ${rightX} ${coneBottomY} L ${leftX} ${cylBottomY} Z`;
+      }
     } else {
       const remVol = Math.max(currentLiqVol - coneVol, 0);
       const cylFrac = cylVol > 0 ? Math.min(remVol / cylVol, 1) : 0;
       const liqCylH = cylHPx * cylFrac;
       liquidTopY = cylBottomY - liqCylH;
 
-      if (coneHeight > 0) {
+      if (tankStyle === 'CONICAL') {
         liquidPath = `M ${leftX} ${liquidTopY} Q ${centerX} ${liquidTopY - 3} ${rightX} ${liquidTopY} L ${rightX} ${cylBottomY} L ${centerX + 12} ${coneBottomY} L ${centerX - 12} ${coneBottomY} L ${leftX} ${cylBottomY} Z`;
+      } else if (tankStyle === 'TORISPHERICAL') {
+        liquidPath = `M ${leftX} ${liquidTopY} Q ${centerX} ${liquidTopY - 3} ${rightX} ${liquidTopY} L ${rightX} ${cylBottomY} Q ${centerX} ${cylBottomY + coneHPx * 1.8} ${leftX} ${cylBottomY} Z`;
       } else {
-        liquidPath = `M ${leftX} ${liquidTopY} Q ${centerX} ${liquidTopY - 3} ${rightX} ${liquidTopY} L ${rightX} ${cylBottomY} L ${leftX} ${cylBottomY} Z`;
+        liquidPath = `M ${leftX} ${liquidTopY} Q ${centerX} ${liquidTopY - 3} ${rightX} ${liquidTopY} L ${rightX} ${cylBottomY + 22} L ${leftX} ${cylBottomY} Z`;
       }
     }
   }
@@ -236,6 +257,13 @@ function TankCadDiagram({
     },
   }[liquidType];
 
+  const MATERIAL_CONFIG = {
+    SS_316L: { label: 'SS 316L (Contact)', badge: 'Pharma / High-Acid' },
+    SS_304: { label: 'SS 304 (Food Grade)', badge: 'Standard Beverage' },
+    CARBON_STEEL: { label: 'Carbon Steel A36', badge: 'Utility / Water' },
+    DUPLEX_2205: { label: 'Duplex 2205', badge: 'High-Chloride / Chemical' },
+  }[materialType];
+
   const workingVol = totalVol * 0.9;
   let ullageY = cylTopY;
   if (coneVol >= workingVol && coneVol > 0) {
@@ -259,7 +287,7 @@ function TankCadDiagram({
               2D CAD MECHANICAL SCHEMATIC
             </div>
             <div className="text-sm font-black text-slate-100">
-              Orthographic Cross-Section (ASME BPE)
+              Orthographic Cross-Section (ASME BPE &amp; DIN 28011)
             </div>
           </div>
         </div>
@@ -339,7 +367,7 @@ function TankCadDiagram({
             ▼ FINISHED FLOOR (±0.00)
           </text>
 
-          {/* Dynamic Structural Support Legs */}
+          {/* Dynamic Structural Support Legs with Foot Plates & ASME Repads */}
           <line
             x1={leftX + 10}
             y1={cylBottomY - 15}
@@ -348,6 +376,17 @@ function TankCadDiagram({
             stroke="#CBD5E1"
             strokeWidth="6"
             strokeLinecap="round"
+          />
+          {/* Leg Attachment Repad */}
+          <rect
+            x={leftX - 2}
+            y={cylBottomY - 20}
+            width="16"
+            height="10"
+            fill="#1E293B"
+            stroke="#64748B"
+            strokeWidth="0.8"
+            rx="1"
           />
           <rect
             x={leftX - 26}
@@ -368,6 +407,17 @@ function TankCadDiagram({
             stroke="#CBD5E1"
             strokeWidth="6"
             strokeLinecap="round"
+          />
+          {/* Leg Attachment Repad */}
+          <rect
+            x={rightX - 14}
+            y={cylBottomY - 20}
+            width="16"
+            height="10"
+            fill="#1E293B"
+            stroke="#64748B"
+            strokeWidth="0.8"
+            rx="1"
           />
           <rect
             x={rightX - 2}
@@ -398,6 +448,18 @@ function TankCadDiagram({
             strokeWidth="3.2"
           />
 
+          {/* Fabrication Weld Seam: Top Head Circumferential Joint */}
+          <line
+            x1={leftX}
+            y1={cylTopY}
+            x2={rightX}
+            y2={cylTopY}
+            stroke="#0284C7"
+            strokeWidth="1"
+            strokeDasharray="4 3"
+            opacity="0.8"
+          />
+
           {/* Tank Cylinder Shell */}
           <line
             x1={leftX}
@@ -416,8 +478,46 @@ function TankCadDiagram({
             strokeWidth="3.2"
           />
 
-          {/* Conical Bottom */}
-          {coneHeight > 0 ? (
+          {/* Fabrication Weld Seam: Mid-Height Shell Course Joint (if height > 2m) */}
+          {cylHeight > 2.0 && (
+            <g>
+              <line
+                x1={leftX}
+                y1={cylTopY + cylHPx / 2}
+                x2={rightX}
+                y2={cylTopY + cylHPx / 2}
+                stroke="#64748B"
+                strokeWidth="0.8"
+                strokeDasharray="5 3"
+                opacity="0.6"
+              />
+              <text
+                x={rightX - 6}
+                y={cylTopY + cylHPx / 2 - 3}
+                fill="#64748B"
+                fontSize="7.5"
+                fontFamily="monospace"
+                textAnchor="end"
+              >
+                COURSE SEAM W-1
+              </text>
+            </g>
+          )}
+
+          {/* Fabrication Weld Seam: Bottom Circumferential Joint */}
+          <line
+            x1={leftX}
+            y1={cylBottomY}
+            x2={rightX}
+            y2={cylBottomY}
+            stroke="#0284C7"
+            strokeWidth="1"
+            strokeDasharray="4 3"
+            opacity="0.8"
+          />
+
+          {/* DYNAMIC BOTTOM HEAD GEOMETRY (CONICAL vs TORISPHERICAL vs SLOPED FLAT) */}
+          {tankStyle === 'CONICAL' && (
             <>
               <line
                 x1={leftX}
@@ -435,7 +535,7 @@ function TankCadDiagram({
                 stroke="#38BDF8"
                 strokeWidth="3.2"
               />
-              {/* Bottom Discharge Nozzle */}
+              {/* Central Sanitary Discharge Nozzle */}
               <rect
                 x={centerX - 12}
                 y={coneBottomY}
@@ -449,24 +549,79 @@ function TankCadDiagram({
                 points={`${centerX - 15},${coneBottomY + 20} ${centerX + 15},${coneBottomY + 20} ${centerX + 15},${coneBottomY + 25} ${centerX - 15},${coneBottomY + 25}`}
                 fill="#38BDF8"
               />
-              {/* Valve Symbol */}
               <polygon
                 points={`${centerX - 9},${coneBottomY + 7} ${centerX + 9},${coneBottomY + 13} ${centerX + 9},${coneBottomY + 7} ${centerX - 9},${coneBottomY + 13}`}
                 fill="#0284C7"
               />
             </>
-          ) : (
-            <line
-              x1={leftX}
-              y1={cylBottomY}
-              x2={rightX}
-              y2={cylBottomY}
-              stroke="#38BDF8"
-              strokeWidth="3.2"
-            />
           )}
 
-          {/* Top Nozzle Fittings */}
+          {tankStyle === 'TORISPHERICAL' && (
+            <>
+              {/* Torispherical Dished Bottom (DIN 28011) */}
+              <path
+                d={`M ${leftX} ${cylBottomY} Q ${centerX} ${cylBottomY + coneHPx * 1.8} ${rightX} ${cylBottomY}`}
+                fill="none"
+                stroke="#38BDF8"
+                strokeWidth="3.2"
+              />
+              {/* Bottom Central Sanitary Nozzle */}
+              <rect
+                x={centerX - 12}
+                y={cylBottomY + coneHPx * 1.8 - 4}
+                width="24"
+                height="20"
+                fill="#1E293B"
+                stroke="#38BDF8"
+                strokeWidth="2"
+              />
+              <polygon
+                points={`${centerX - 15},${cylBottomY + coneHPx * 1.8 + 16} ${centerX + 15},${cylBottomY + coneHPx * 1.8 + 16} ${centerX + 15},${cylBottomY + coneHPx * 1.8 + 21} ${centerX - 15},${cylBottomY + coneHPx * 1.8 + 21}`}
+                fill="#38BDF8"
+              />
+            </>
+          )}
+
+          {tankStyle === 'SLOPED_FLAT' && (
+            <>
+              {/* 5° Sloped Flat Bottom with Offset Side Sump */}
+              <line
+                x1={leftX}
+                y1={cylBottomY}
+                x2={rightX - 35}
+                y2={cylBottomY + 22}
+                stroke="#38BDF8"
+                strokeWidth="3.2"
+              />
+              {/* Side Sump Well */}
+              <line x1={rightX - 35} y1={cylBottomY + 22} x2={rightX - 35} y2={cylBottomY + 36} stroke="#38BDF8" strokeWidth="2.5" />
+              <line x1={rightX - 35} y1={cylBottomY + 36} x2={rightX} y2={cylBottomY + 36} stroke="#38BDF8" strokeWidth="2.5" />
+              <line x1={rightX} y1={cylBottomY + 36} x2={rightX} y2={cylBottomY} stroke="#38BDF8" strokeWidth="2.5" />
+              {/* Sump Discharge Valve */}
+              <rect
+                x={rightX - 25}
+                y={cylBottomY + 36}
+                width="18"
+                height="16"
+                fill="#1E293B"
+                stroke="#38BDF8"
+                strokeWidth="1.8"
+              />
+            </>
+          )}
+
+          {/* Top Nozzle Fittings with Reinforcement Repad */}
+          <rect
+            x={centerX - 30}
+            y={topY - 18}
+            width="60"
+            height="22"
+            fill="#0B132B"
+            stroke="#0284C7"
+            strokeWidth="0.8"
+            strokeDasharray="3 2"
+            rx="3"
+          />
           <rect
             x={centerX - 24}
             y={topY - 14}
@@ -539,7 +694,7 @@ function TankCadDiagram({
           </text>
 
           {/* ================================================================
-              CAD DIMENSION LINES & CALLOUT ARROWS (ENLARGED & HIGH CONTRAST)
+              CAD DIMENSION LINES & CALLOUT ARROWS
           ================================================================ */}
           {/* Top Diameter Dimension */}
           <g>
@@ -614,44 +769,6 @@ function TankCadDiagram({
               H₁={cylHeight.toFixed(1)}m
             </text>
           </g>
-
-          {/* Cone Height Dimension */}
-          {coneHeight > 0 && (
-            <g>
-              <line
-                x1={leftX - 22}
-                y1={cylBottomY}
-                x2={leftX - 22}
-                y2={coneBottomY}
-                stroke="#38BDF8"
-                strokeWidth="1.5"
-                markerStart="url(#arrowStart)"
-                markerEnd="url(#arrowEnd)"
-              />
-              <line x1={centerX - 12} y1={coneBottomY} x2={leftX - 28} y2={coneBottomY} stroke="#64748B" strokeWidth="1" />
-              <rect
-                x={leftX - 88}
-                y={(cylBottomY + coneBottomY) / 2 - 11}
-                width="62"
-                height="22"
-                fill="#0F172A"
-                stroke="#0284C7"
-                strokeWidth="0.9"
-                rx="3"
-              />
-              <text
-                x={leftX - 57}
-                y={(cylBottomY + coneBottomY) / 2 + 5}
-                fill="#38BDF8"
-                fontSize="12"
-                fontFamily="monospace"
-                fontWeight="bold"
-                textAnchor="middle"
-              >
-                H₂={coneHeight.toFixed(2)}m
-              </text>
-            </g>
-          )}
 
           {/* Support Leg Height Dimension */}
           <g>
@@ -782,33 +899,37 @@ function TankCadDiagram({
             </g>
           )}
 
-          {/* Technical Drawing Stamp (ASME Title Block - Large & High Contrast) */}
-          <g transform="translate(305, 432)">
+          {/* Technical Drawing Stamp (ASME Title Block with Material & Price Attribution) */}
+          <g transform="translate(290, 422)">
             <rect
               x="0"
               y="0"
-              width="205"
-              height="96"
+              width="220"
+              height="106"
               fill="#0A1128"
               stroke="#475569"
               strokeWidth="1.2"
               rx="4"
             />
-            <rect x="0" y="0" width="205" height="24" fill="#1E293B" rx="4" />
-            <line x1="0" y1="24" x2="205" y2="24" stroke="#475569" strokeWidth="1" />
-            <line x1="0" y1="48" x2="205" y2="48" stroke="#334155" strokeWidth="0.8" />
-            <line x1="0" y1="72" x2="205" y2="72" stroke="#334155" strokeWidth="0.8" />
-            <text x="10" y="17" fill="#38BDF8" fontSize="11" fontFamily="monospace" fontWeight="900">
-              ASME BPE • 3-A SANITARY
+            <rect x="0" y="0" width="220" height="24" fill="#1E293B" rx="4" />
+            <line x1="0" y1="24" x2="220" y2="24" stroke="#475569" strokeWidth="1" />
+            <line x1="0" y1="46" x2="220" y2="46" stroke="#334155" strokeWidth="0.8" />
+            <line x1="0" y1="68" x2="220" y2="68" stroke="#334155" strokeWidth="0.8" />
+            <line x1="0" y1="88" x2="220" y2="88" stroke="#334155" strokeWidth="0.8" />
+            <text x="10" y="16" fill="#38BDF8" fontSize="10.5" fontFamily="monospace" fontWeight="900">
+              ASME BPE • {tankStyle} SUMP
             </text>
-            <text x="10" y="40" fill="#F8FAFC" fontSize="10.5" fontFamily="monospace" fontWeight="bold">
-              MAT: SS 316L (Contact)
+            <text x="10" y="38" fill="#F8FAFC" fontSize="10" fontFamily="monospace" fontWeight="bold">
+              MAT: {MATERIAL_CONFIG.label}
             </text>
-            <text x="10" y="64" fill="#CBD5E1" fontSize="10" fontFamily="monospace">
-              LEGS: {legHeight.toFixed(2)}m SS Tubular
+            <text x="10" y="60" fill="#CBD5E1" fontSize="9.5" fontFamily="monospace">
+              THK: {plateThicknessMm}mm Shell • {(plateThicknessMm + 1).toFixed(1)}mm Heads
             </text>
-            <text x="10" y="88" fill="#38BDF8" fontSize="10" fontFamily="monospace" fontWeight="bold">
-              FLUID: {liquidType} ({FLUID_CONFIG.tag})
+            <text x="10" y="80" fill="#38BDF8" fontSize="9.5" fontFamily="monospace" fontWeight="bold">
+              DRY STEEL: {Math.round(drySteelKg).toLocaleString()} kg (+14% scrap)
+            </text>
+            <text x="10" y="100" fill="#FBBF24" fontSize="10" fontFamily="monospace" fontWeight="900">
+              EST. QUOTE: Rs. {new Intl.NumberFormat('en-PK').format(Math.round(estTankPricePkr))} (BETA)
             </text>
           </g>
         </svg>
@@ -817,9 +938,9 @@ function TankCadDiagram({
       {/* Real-time Technical Telemetry Bar */}
       <div className="grid grid-cols-4 gap-2 pt-3 border-t border-slate-800/80 mt-2 font-mono">
         <div className="bg-slate-900/90 p-2.5 rounded-xl border border-slate-800">
-          <span className="text-slate-400 block uppercase font-bold text-[10px]">Liquid Mass</span>
+          <span className="text-slate-400 block uppercase font-bold text-[10px]">Steel Mass</span>
           <span className="text-emerald-300 font-black text-sm mt-0.5 block">
-            {(liquidWeightKg / 1000).toFixed(2)} MT
+            {(drySteelKg / 1000).toFixed(2)} MT
           </span>
         </div>
         <div className="bg-slate-900/90 p-2.5 rounded-xl border border-slate-800">
@@ -835,7 +956,7 @@ function TankCadDiagram({
           </span>
         </div>
         <div className="bg-slate-900/90 p-2.5 rounded-xl border border-slate-800">
-          <span className="text-slate-400 block uppercase font-bold text-[10px]">Leg Height</span>
+          <span className="text-slate-400 block uppercase font-bold text-[10px]">Leg Clearance</span>
           <span className="text-purple-300 font-black text-sm mt-0.5 block">
             {legHeight.toFixed(2)} m
           </span>
@@ -864,8 +985,9 @@ function ToolsContent() {
   const backToMenu = () => { setActiveTool(null); router.push('/tools', { scroll: false }); };
 
   // =========================================================================
-  // TOOL 1: TANK VOLUME STATE
-  // Real-world limits: Beverage tanks 500L–200,000L. DIN 28050 / ASME BPE standard.
+  // TOOL 1: TANK VOLUME & FABRICATION ESTIMATOR (BETA)
+  // Standards: DIN 28011 (Torispherical Heads), EHEDG Doc. 9 (Sanitary 60°/90° Cones),
+  // ASME BPE-2022, ASME Sec VIII Div 1, ASTM A380 (Passivation)
   // =========================================================================
   const [tankDiameter, setTankDiameter] = useState(2.0);    // 0.5–5.0 m
   const [tankCylHeight, setTankCylHeight] = useState(3.5);   // 0.5–8.0 m
@@ -874,24 +996,89 @@ function ToolsContent() {
   const [tankFillPct, setTankFillPct] = useState(85);        // 50–100 %
   const [liquidType, setLiquidType] = useState<'WATER' | 'SYRUP' | 'CIP' | 'ALCOHOL'>('WATER');
 
+  // Engineering Fabrication State
+  const [tankStyle, setTankStyle] = useState<TankStyle>('CONICAL');
+  const [materialType, setMaterialType] = useState<TankMaterial>('SS_316L');
+  const [plateThicknessMm, setPlateThicknessMm] = useState<number>(4.0);
+  const [customMaterialRatePkr, setCustomMaterialRatePkr] = useState<number>(1480);
+  const [safetyMarginPct, setSafetyMarginPct] = useState<number>(15);
+
+  const MATERIAL_DEFAULTS: Record<TankMaterial, { density: number; baseRate: number; laborRate: number; name: string; spec: string }> = {
+    SS_316L: { density: 8000, baseRate: 1480, laborRate: 550, name: 'SS 316L', spec: 'Pharma / High-Acid Food Contact' },
+    SS_304: { density: 7930, baseRate: 1150, laborRate: 520, name: 'SS 304', spec: 'Standard Food Grade / Beverage / Dairy' },
+    CARBON_STEEL: { density: 7850, baseRate: 280, laborRate: 220, name: 'Carbon Steel (A36)', spec: 'Industrial Water / Oil / Utilities' },
+    DUPLEX_2205: { density: 7800, baseRate: 2300, laborRate: 850, name: 'Duplex 2205', spec: 'High-Chloride / Acid / Marine Service' },
+  };
+
+  const getRecommendedThickness = (dia: number) => {
+    if (dia <= 1.8) return 3.0;
+    if (dia <= 2.8) return 4.0;
+    if (dia <= 3.8) return 5.0;
+    return 6.0;
+  };
+
   const LIQUID_DENSITY: Record<typeof liquidType, number> = {
     WATER: 1000, SYRUP: 1280, CIP: 1050, ALCOHOL: 789,
   };
   const tankRadius = tankDiameter / 2;
   const cylVolM3 = Math.PI * tankRadius ** 2 * tankCylHeight;
-  const coneVolM3 = (1 / 3) * Math.PI * tankRadius ** 2 * tankConeHeight;
-  const totalTankVolM3 = cylVolM3 + coneVolM3;
+
+  // Bottom Head Volume based on Tank Geometry
+  const bottomVolM3 =
+    tankStyle === 'CONICAL'
+      ? (1 / 3) * Math.PI * tankRadius ** 2 * tankConeHeight
+      : tankStyle === 'TORISPHERICAL'
+      ? 0.0847 * tankDiameter ** 3
+      : 0.0437 * tankDiameter ** 3; // 5° sloped flat bottom to drain sump
+
+  const totalTankVolM3 = cylVolM3 + bottomVolM3;
   const totalTankLiters = totalTankVolM3 * 1000;
   const workingCapacityLiters = totalTankLiters * 0.9; // 10% ullage per EHEDG / 3-A Sanitary Standard
   const currentFillLiters = totalTankLiters * (tankFillPct / 100);
   const liquidDensity = LIQUID_DENSITY[liquidType];
   const liquidWeightKg = (currentFillLiters / 1000) * liquidDensity;
-  const shellSurfaceAreaM2 =
-    2 * Math.PI * tankRadius * tankCylHeight +
-    Math.PI * tankRadius * Math.sqrt(tankRadius ** 2 + tankConeHeight ** 2) +
-    Math.PI * tankRadius ** 2;
+
+  // Surface Areas (DIN 28011 & ASME)
+  const topHeadAreaM2 = 1.22 * Math.PI * tankRadius ** 2; // Torispherical dished blank area
+  const cylShellAreaM2 = 2 * Math.PI * tankRadius * tankCylHeight;
+  const bottomHeadAreaM2 =
+    tankStyle === 'CONICAL'
+      ? Math.PI * tankRadius * Math.sqrt(tankRadius ** 2 + tankConeHeight ** 2)
+      : tankStyle === 'TORISPHERICAL'
+      ? 1.22 * Math.PI * tankRadius ** 2
+      : (Math.PI * tankRadius ** 2) / Math.cos((5 * Math.PI) / 180);
+
+  const shellSurfaceAreaM2 = cylShellAreaM2 + topHeadAreaM2 + bottomHeadAreaM2;
   // CIP spray ball coverage: requires ≥25 L/min per m² of surface area
   const cipFlowRequiredLmin = shellSurfaceAreaM2 * 25;
+
+  // Real-world Material & Fabrication Math
+  const matConfig = MATERIAL_DEFAULTS[materialType];
+  const headThicknessMm = plateThicknessMm + 1.0; // Spinning & knuckle forming thinning allowance per ASME Sec VIII Div 1
+  const cylPlateVolM3 = cylShellAreaM2 * (plateThicknessMm / 1000);
+  const headsPlateVolM3 = (topHeadAreaM2 + bottomHeadAreaM2) * (headThicknessMm / 1000);
+  const netPlateMassKg = (cylPlateVolM3 + headsPlateVolM3) * matConfig.density;
+
+  // Nesting & Circular Cutout Scrap (+14% per real fabrication shop yield)
+  const grossPlateMassKg = netPlateMassKg * 1.14;
+
+  // Structural Legs (4x Schedule 40 tubular legs with footpads, gusset plates, leveling bolts)
+  const legsMassKg = 4 * (14 + 11 * tankLegHeight);
+  // DN450/DN500 Sanitary Davit Arm Manway + Flange
+  const manwayMassKg = 45;
+  // Nozzles, Reinforcing Repads (ASME BPE Tri-Clamp: CIP, Inlet, Outlet Sump, Vent, Sample)
+  const nozzlesMassKg = 28;
+  // AWS TIG Weld Filler Wire & Consumables (~3% of net plate mass)
+  const weldWireMassKg = netPlateMassKg * 0.03;
+
+  const totalDrySteelKg = grossPlateMassKg + legsMassKg + manwayMassKg + nozzlesMassKg + weldWireMassKg;
+
+  // Commercial Fabrication Costing
+  const rawMaterialCostPkr = totalDrySteelKg * customMaterialRatePkr;
+  const fabricationLaborCostPkr = totalDrySteelKg * matConfig.laborRate; // Automated rolling, TIG with Argon root backing, pickling/passivation bath, mechanical polish Ra < 0.4um, hydrotest
+  const subtotalCostPkr = rawMaterialCostPkr + fabricationLaborCostPkr;
+  const estimatedTankPricePkr = subtotalCostPkr * (1 + safetyMarginPct / 100);
+  const estimatedTankPriceUsd = estimatedTankPricePkr / 278.50;
 
   // =========================================================================
   // TOOL 2: PIPE VELOCITY STATE
@@ -1187,29 +1374,30 @@ function ToolsContent() {
                   </div>
 
                   <div className="p-2 sm:p-2.5 bg-slate-50 rounded-xl border border-slate-200">
-                    <div className="text-[10px] font-mono font-black uppercase text-slate-600">SS Shell Area</div>
+                    <div className="text-[10px] font-mono font-black uppercase text-slate-600">Est. Steel Mass</div>
                     <div className="text-lg sm:text-xl font-black font-mono text-slate-950 mt-0.5">
-                      {shellSurfaceAreaM2.toFixed(1)} m²
+                      {Math.round(totalDrySteelKg).toLocaleString()} kg
                     </div>
-                    <div className="text-[10px] font-bold text-slate-600">Cyl + Cone + Top</div>
+                    <div className="text-[10px] font-bold text-slate-600">{(totalDrySteelKg / 1000).toFixed(2)} MT (+14% scrap)</div>
+                  </div>
+
+                  <div className="p-2 sm:p-2.5 bg-amber-50 rounded-xl border border-amber-200">
+                    <div className="text-[10px] font-mono font-black uppercase text-amber-800 flex items-center justify-between">
+                      <span>Est. Quote</span>
+                      <span className="text-[8px] bg-amber-200 text-amber-900 px-1 py-0.2 rounded font-black tracking-wider">BETA</span>
+                    </div>
+                    <div className="text-sm sm:text-base font-black font-mono text-amber-950 mt-0.5 truncate">
+                      Rs. {new Intl.NumberFormat('en-PK').format(Math.round(estimatedTankPricePkr))}
+                    </div>
+                    <div className="text-[10px] font-bold text-amber-700">~${Math.round(estimatedTankPriceUsd).toLocaleString()} USD</div>
                   </div>
 
                   <div className="p-2 sm:p-2.5 bg-purple-50 rounded-xl border border-purple-200">
                     <div className="text-[10px] font-mono font-black uppercase text-purple-800">Total Height</div>
                     <div className="text-lg sm:text-xl font-black font-mono text-purple-900 mt-0.5">
-                      {(tankCylHeight + tankConeHeight + tankLegHeight).toFixed(2)} m
+                      {(tankCylHeight + (tankStyle === 'CONICAL' ? tankConeHeight : tankStyle === 'TORISPHERICAL' ? tankDiameter * 0.19 : tankDiameter * Math.tan((5 * Math.PI) / 180)) + tankLegHeight).toFixed(2)} m
                     </div>
-                    <div className="text-[10px] font-bold text-purple-700">Floor to Top Vent</div>
-                  </div>
-
-                  <div className={`p-2 sm:p-2.5 rounded-xl border ${tankLegHeight >= 0.4 ? 'bg-emerald-50 border-emerald-200' : 'bg-amber-50 border-amber-200'}`}>
-                    <div className={`text-[10px] font-mono font-black uppercase ${tankLegHeight >= 0.4 ? 'text-emerald-800' : 'text-amber-800'}`}>Floor Clearance</div>
-                    <div className={`text-lg sm:text-xl font-black font-mono mt-0.5 ${tankLegHeight >= 0.4 ? 'text-emerald-800' : 'text-amber-800'}`}>
-                      {tankLegHeight.toFixed(2)} m
-                    </div>
-                    <div className={`text-[10px] font-bold ${tankLegHeight >= 0.4 ? 'text-emerald-700' : 'text-amber-700'}`}>
-                      {tankLegHeight >= 0.4 ? '✓ EHEDG washdown OK' : '⚠ Low bottom clearance'}
-                    </div>
+                    <div className="text-[10px] font-bold text-purple-700">Legs: {tankLegHeight.toFixed(2)}m {tankLegHeight >= 0.4 ? '✓' : '⚠'}</div>
                   </div>
                 </div>
 
@@ -1234,13 +1422,14 @@ function ToolsContent() {
                             setTankCylHeight(p.hCyl);
                             setTankConeHeight(p.hCone);
                             setTankLegHeight(p.hLeg);
+                            setPlateThicknessMm(getRecommendedThickness(p.d));
                           }}
                           className="px-3 py-1 rounded-full text-xs font-black bg-slate-50 hover:bg-slate-200 text-slate-900 border border-slate-300 transition-colors shadow-2xs cursor-pointer active:scale-95"
                         >{p.name}</button>
                       ))}
                     </div>
 
-                    {/* Inputs Card */}
+                    {/* Tank Dimensions & Fluid Card */}
                     <div className="bg-white border border-slate-300/90 rounded-2xl p-5 shadow-xs space-y-4">
                       <h2 className="text-base font-black text-slate-950 flex items-center space-x-2 pb-2.5 border-b border-slate-200">
                         <Layers className="w-4 h-4 text-blue-600" />
@@ -1249,16 +1438,48 @@ function ToolsContent() {
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <SliderRow label="Internal Diameter" value={tankDiameter} min={0.5} max={5.0} step={0.05} unit="m"
                           note="Typical beverage tanks: 1.0m (5kL) to 4.5m (100kL)"
-                          onChange={setTankDiameter} formatValue={(v) => v.toFixed(2)} />
+                          onChange={(v) => {
+                            setTankDiameter(v);
+                            // Keep plate thickness aligned if user hasn't heavily customized
+                            if (plateThicknessMm <= 6.0) {
+                              setPlateThicknessMm(getRecommendedThickness(v));
+                            }
+                          }}
+                          formatValue={(v) => v.toFixed(2)} />
                         <SliderRow label="Cylinder Shell Height" value={tankCylHeight} min={0.5} max={8.0} step={0.1} unit="m"
                           note="Practical height-to-diameter ratio: 1.0–2.5× for stability"
                           onChange={setTankCylHeight} formatValue={(v) => v.toFixed(1)} />
-                        <SliderRow label="Conical Bottom Height" value={tankConeHeight} min={0} max={1.5} step={0.05} unit="m"
-                          note="0.3–0.6m cone ensures full CIP drainage (EHEDG guideline)"
-                          onChange={setTankConeHeight} formatValue={(v) => v.toFixed(2)} />
+
+                        {tankStyle === 'CONICAL' ? (
+                          <SliderRow label="Conical Bottom Height" value={tankConeHeight} min={0} max={1.5} step={0.05} unit="m"
+                            note="0.3–0.6m cone ensures full CIP drainage (EHEDG guideline)"
+                            onChange={setTankConeHeight} formatValue={(v) => v.toFixed(2)} />
+                        ) : tankStyle === 'TORISPHERICAL' ? (
+                          <div className="space-y-1.5 p-3 rounded-xl bg-slate-50 border border-slate-200">
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs font-black text-slate-900 uppercase tracking-wider">Torispherical Dish Depth</span>
+                              <span className="text-sm font-black font-mono text-slate-950 bg-white px-2.5 py-0.5 rounded-lg border border-slate-300">
+                                {(tankDiameter * 0.19).toFixed(2)} m
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-slate-500 font-medium">Standard DIN 28011 Klöpperboden geometry (crown R=D, knuckle r=0.1D).</p>
+                          </div>
+                        ) : (
+                          <div className="space-y-1.5 p-3 rounded-xl bg-slate-50 border border-slate-200">
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs font-black text-slate-900 uppercase tracking-wider">5° Sloped Sump Depth</span>
+                              <span className="text-sm font-black font-mono text-slate-950 bg-white px-2.5 py-0.5 rounded-lg border border-slate-300">
+                                {(tankDiameter * Math.tan((5 * Math.PI) / 180)).toFixed(2)} m
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-slate-500 font-medium">Full drainage 5° slope leading directly into offset cleanout well.</p>
+                          </div>
+                        )}
+
                         <SliderRow label="Support Leg Height" value={tankLegHeight} min={0.2} max={2.0} step={0.05} unit="m"
                           note="Sanitary clearance for bottom valve & floor washdown (min 0.3m per EHEDG)"
                           onChange={setTankLegHeight} formatValue={(v) => v.toFixed(2)} />
+
                         <div className="sm:col-span-2">
                           <SliderRow label="Current Fill Level" value={tankFillPct} min={0} max={100} step={1} unit="%"
                             note="Working capacity limited to 90% (10% ullage / headspace standard)"
@@ -1280,9 +1501,245 @@ function ToolsContent() {
                       </div>
                     </div>
 
-                    <NoteCard icon={<Info className="w-5 h-5 text-blue-600" />} title="ASME BPE &amp; EHEDG Formulation">
-                      <p className="text-xs font-mono text-blue-950 font-black">V_total = (π × R² × H_cyl) + (⅓ × π × R² × H_cone)</p>
-                      <p className="text-xs text-blue-900 leading-relaxed font-medium">Conical bottoms ensure 100% complete CIP drainage without puddling. Leg clearance ≥ 0.4m ensures unhindered floor sanitization per EHEDG Doc. 9 / 3-A Standard 20-28.</p>
+                    {/* Fabrication Material & Cost Estimator Card (BETA) */}
+                    <div className="bg-white border border-slate-300/90 rounded-2xl p-5 shadow-xs space-y-4">
+                      <div className="flex items-center justify-between pb-2.5 border-b border-slate-200">
+                        <h2 className="text-base font-black text-slate-950 flex items-center space-x-2">
+                          <Hammer className="w-4 h-4 text-amber-600" />
+                          <span>Fabrication Material &amp; Cost Estimator</span>
+                        </h2>
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-black uppercase tracking-wider bg-amber-100 text-amber-900 border border-amber-300">
+                          BETA: Empirical Estimation Model
+                        </span>
+                      </div>
+
+                      {/* Tank Mechanical Style Selector */}
+                      <div>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="text-xs font-black text-slate-900 uppercase tracking-wider">
+                            Tank Sump / Bottom Style
+                          </span>
+                          <span className="text-[11px] font-mono font-bold text-slate-500">
+                            {tankStyle === 'CONICAL' ? 'EHEDG Doc. 9 Steep Cone' : tankStyle === 'TORISPHERICAL' ? 'DIN 28011 Klöpperboden' : '5° Atmospheric Sloped'}
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2">
+                          {[
+                            { id: 'CONICAL', label: 'Conical 60° Hopper', desc: 'EHEDG Complete CIP Drain' },
+                            { id: 'TORISPHERICAL', label: 'Torispherical Dish', desc: 'DIN 28011 / ASME VIII' },
+                            { id: 'SLOPED_FLAT', label: '5° Sloped Flat', desc: 'Offset Sump Well' },
+                          ].map((s) => (
+                            <button
+                              key={s.id}
+                              type="button"
+                              onClick={() => setTankStyle(s.id as TankStyle)}
+                              className={`p-2.5 rounded-xl text-left border transition-all cursor-pointer ${
+                                tankStyle === s.id
+                                  ? 'bg-slate-950 text-white border-slate-950 shadow-xs'
+                                  : 'bg-slate-50 hover:bg-slate-100 text-slate-800 border-slate-200'
+                              }`}
+                            >
+                              <div className="text-xs font-black">{s.label}</div>
+                              <div className={`text-[10px] font-medium mt-0.5 ${tankStyle === s.id ? 'text-slate-300' : 'text-slate-500'}`}>
+                                {s.desc}
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Material of Construction (MOC) */}
+                      <div>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="text-xs font-black text-slate-900 uppercase tracking-wider">
+                            Material of Construction (MOC)
+                          </span>
+                          <span className="text-[11px] font-mono font-bold text-slate-500">
+                            Density: {matConfig.density} kg/m³
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                          {(['SS_316L', 'SS_304', 'CARBON_STEEL', 'DUPLEX_2205'] as TankMaterial[]).map((mat) => {
+                            const cfg = MATERIAL_DEFAULTS[mat];
+                            const isSelected = materialType === mat;
+                            return (
+                              <button
+                                key={mat}
+                                type="button"
+                                onClick={() => {
+                                  setMaterialType(mat);
+                                  setCustomMaterialRatePkr(cfg.baseRate);
+                                }}
+                                className={`p-2.5 rounded-xl text-left border transition-all cursor-pointer ${
+                                  isSelected
+                                    ? 'bg-sky-950 text-white border-sky-800 shadow-xs'
+                                    : 'bg-slate-50 hover:bg-slate-100 text-slate-800 border-slate-200'
+                                }`}
+                              >
+                                <div className="text-xs font-black">{cfg.name}</div>
+                                <div className={`text-[10px] mt-0.5 line-clamp-1 ${isSelected ? 'text-sky-300' : 'text-slate-500'}`}>
+                                  {cfg.spec}
+                                </div>
+                                <div className={`text-[10px] font-mono font-bold mt-1 ${isSelected ? 'text-amber-300' : 'text-slate-600'}`}>
+                                  Rs. {cfg.baseRate}/kg
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Plate Thickness & Recommended Pill */}
+                      <div className="space-y-2 pt-1 border-t border-slate-100">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-black text-slate-900 uppercase tracking-wider">
+                            Nominal Shell Plate Thickness
+                          </span>
+                          <div className="flex items-center space-x-2">
+                            <span className="text-[11px] font-bold text-slate-600">
+                              Heads Stock: <strong className="font-mono text-slate-900">{headThicknessMm.toFixed(1)}mm</strong> (+1mm forming allowance)
+                            </span>
+                            {plateThicknessMm !== getRecommendedThickness(tankDiameter) && (
+                              <button
+                                type="button"
+                                onClick={() => setPlateThicknessMm(getRecommendedThickness(tankDiameter))}
+                                className="text-[10px] font-black text-blue-700 bg-blue-50 border border-blue-200 rounded-md px-2 py-0.5 hover:bg-blue-100 cursor-pointer"
+                              >
+                                Auto-Rec: {getRecommendedThickness(tankDiameter)}mm
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                        <SliderRow
+                          label="Shell Plate Gauge"
+                          value={plateThicknessMm}
+                          min={2.0}
+                          max={12.0}
+                          step={0.5}
+                          unit="mm"
+                          note={`ASME VIII recommendation for D=${tankDiameter.toFixed(1)}m is ≥ ${getRecommendedThickness(tankDiameter)}mm`}
+                          onChange={setPlateThicknessMm}
+                          formatValue={(v) => v.toFixed(1)}
+                        />
+                      </div>
+
+                      {/* Material Price & Safety Margin Inputs */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-slate-100">
+                        <div>
+                          <div className="flex items-center justify-between mb-1.5">
+                            <label className="text-xs font-black text-slate-900 uppercase tracking-wider">
+                              Material Rate (PKR / kg)
+                            </label>
+                            <button
+                              type="button"
+                              onClick={() => setCustomMaterialRatePkr(matConfig.baseRate)}
+                              className="text-[10px] font-bold text-slate-500 hover:text-slate-800 underline cursor-pointer"
+                            >
+                              Reset default
+                            </button>
+                          </div>
+                          <div className="relative">
+                            <span className="absolute left-3 top-2.5 text-xs font-bold text-slate-500">Rs.</span>
+                            <input
+                              type="number"
+                              min={100}
+                              max={10000}
+                              step={10}
+                              value={customMaterialRatePkr}
+                              onChange={(e) => setCustomMaterialRatePkr(parseFloat(e.target.value) || 0)}
+                              className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-xl font-mono font-bold text-slate-950 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                          </div>
+                          <p className="text-[10px] text-slate-500 mt-1">
+                            Base sheet/plate price. Default for {matConfig.name}: Rs. {matConfig.baseRate}/kg.
+                          </p>
+                        </div>
+
+                        <div>
+                          <SliderRow
+                            label="Safety / Contingency Margin"
+                            value={safetyMarginPct}
+                            min={5}
+                            max={35}
+                            step={1}
+                            unit="%"
+                            note="Covers metal price volatility, NDT radiography, passivation bath & hydrotest"
+                            onChange={setSafetyMarginPct}
+                            formatValue={(v) => `${v}% (+Rs. ${Math.round((subtotalCostPkr * v) / 100).toLocaleString()})`}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Fabrication Commercial Quotation Telemetry Card */}
+                      <div className="bg-slate-900 rounded-2xl p-4 text-white space-y-3 mt-2">
+                        <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                          <span className="text-xs font-mono font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
+                            <Scale className="w-3.5 h-3.5" />
+                            Cost &amp; Mass Breakdown (Fabrication Model)
+                          </span>
+                          <span className="text-[11px] font-mono text-slate-400">
+                            Exchange: 1 USD = 278.50 PKR
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs font-mono">
+                          <div className="bg-slate-800/80 p-2 rounded-xl">
+                            <div className="text-slate-400 text-[10px]">Net Plate Mass</div>
+                            <div className="font-bold text-slate-200 mt-0.5">{Math.round(netPlateMassKg).toLocaleString()} kg</div>
+                          </div>
+                          <div className="bg-slate-800/80 p-2 rounded-xl">
+                            <div className="text-slate-400 text-[10px]">Gross (+14% scrap)</div>
+                            <div className="font-bold text-sky-300 mt-0.5">{Math.round(grossPlateMassKg).toLocaleString()} kg</div>
+                          </div>
+                          <div className="bg-slate-800/80 p-2 rounded-xl">
+                            <div className="text-slate-400 text-[10px]">Appurtenances &amp; Legs</div>
+                            <div className="font-bold text-slate-200 mt-0.5">{Math.round(legsMassKg + manwayMassKg + nozzlesMassKg + weldWireMassKg)} kg</div>
+                          </div>
+                          <div className="bg-slate-800/80 p-2 rounded-xl">
+                            <div className="text-slate-400 text-[10px]">Total Fabricated Mass</div>
+                            <div className="font-bold text-emerald-300 mt-0.5">{Math.round(totalDrySteelKg).toLocaleString()} kg</div>
+                          </div>
+                        </div>
+
+                        <div className="space-y-1.5 text-xs pt-1 border-t border-slate-800">
+                          <div className="flex justify-between text-slate-300">
+                            <span>Raw Material Cost ({Math.round(totalDrySteelKg)} kg @ Rs. {customMaterialRatePkr}/kg):</span>
+                            <span className="font-mono font-bold text-slate-100">Rs. {Math.round(rawMaterialCostPkr).toLocaleString()}</span>
+                          </div>
+                          <div className="flex justify-between text-slate-300">
+                            <span>Labor, TIG Purging &amp; Polish (Ra &lt; 0.4µm @ Rs. {matConfig.laborRate}/kg):</span>
+                            <span className="font-mono font-bold text-slate-100">Rs. {Math.round(fabricationLaborCostPkr).toLocaleString()}</span>
+                          </div>
+                          <div className="flex justify-between text-slate-400 text-[11px]">
+                            <span>Safety / Contingency Margin ({safetyMarginPct}%):</span>
+                            <span className="font-mono text-amber-300">+Rs. {Math.round((subtotalCostPkr * safetyMarginPct) / 100).toLocaleString()}</span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between pt-2 border-t border-slate-700/80">
+                          <div>
+                            <span className="text-[10px] font-black uppercase text-amber-400 tracking-wider block">
+                              Total Commercial Fabrication Quote (BETA)
+                            </span>
+                            <span className="text-xs text-slate-400">
+                              Ex-Works (EXW) Factory • Cleaned, Passivated &amp; Pressure-Tested
+                            </span>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-xl font-black font-mono text-amber-400">
+                              Rs. {new Intl.NumberFormat('en-PK').format(Math.round(estimatedTankPricePkr))}
+                            </div>
+                            <div className="text-xs font-mono font-bold text-emerald-400">
+                              ~${new Intl.NumberFormat('en-US').format(Math.round(estimatedTankPriceUsd))} USD
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <NoteCard icon={<Info className="w-5 h-5 text-blue-600" />} title="ASME BPE, DIN 28011 &amp; Fabrication Standards">
+                      <p className="text-xs font-mono text-blue-950 font-black">V_total = V_cyl + V_bottom (Conical, Torispherical Klöpperboden, or 5° Sloped)</p>
+                      <p className="text-xs text-blue-900 leading-relaxed font-medium">Pricing model accounts for circular dished head blank scrap (+14%), spinning knuckle thinning (+1mm stock), 4x Schedule 40 tubular support legs, DN500 davit manway, ASME BPE nozzles, TIG Argon root gas shielding, acid passivation per ASTM A380, and internal mechanical polishing to sanitary surface finish Ra &lt; 0.4µm.</p>
                     </NoteCard>
                   </div>
 
@@ -1299,6 +1756,11 @@ function ToolsContent() {
                       totalLiters={totalTankLiters}
                       workingCapacityLiters={workingCapacityLiters}
                       liquidWeightKg={liquidWeightKg}
+                      tankStyle={tankStyle}
+                      materialType={materialType}
+                      plateThicknessMm={plateThicknessMm}
+                      drySteelKg={totalDrySteelKg}
+                      estTankPricePkr={estimatedTankPricePkr}
                     />
                   </div>
                 </div>
