@@ -51,6 +51,7 @@ export default function QuotationAgentPage() {
   const [isAgentThinking, setIsAgentThinking] = useState(false);
   const [attachedFileName, setAttachedFileName] = useState<string | null>(null);
   const [saveSuccessNotice, setSaveSuccessNotice] = useState(false);
+  const [mobileTab, setMobileTab] = useState<'chat' | 'document'>('chat');
   const chatBottomRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -144,10 +145,60 @@ export default function QuotationAgentPage() {
 
   return (
     <div className="flex-1 flex flex-col lg:flex-row h-full overflow-hidden bg-slate-950">
+      {/* Mobile Segmented View Control (Visible only on mobile/tablet < lg) */}
+      <div className="lg:hidden h-12 bg-slate-900 border-b border-slate-800 px-3 flex items-center justify-between flex-shrink-0 z-30">
+        <div className="flex bg-slate-950 p-0.5 rounded-lg border border-slate-800 flex-1 max-w-xs mr-2">
+          <button
+            onClick={() => setMobileTab('chat')}
+            className={`flex-1 py-1.5 rounded-md text-xs font-semibold flex items-center justify-center space-x-1.5 transition-all ${
+              mobileTab === 'chat'
+                ? 'bg-amber-500 text-slate-950 shadow-sm font-bold'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <Bot className="w-3.5 h-3.5" />
+            <span>AI Chat</span>
+          </button>
+          <button
+            onClick={() => setMobileTab('document')}
+            className={`flex-1 py-1.5 rounded-md text-xs font-semibold flex items-center justify-center space-x-1.5 transition-all ${
+              mobileTab === 'document'
+                ? 'bg-amber-500 text-slate-950 shadow-sm font-bold'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <FileText className="w-3.5 h-3.5" />
+            <span>Quote (Rs. {formatPKR(templateState.grandTotal)})</span>
+          </button>
+        </div>
+
+        <div className="flex items-center space-x-1.5 flex-shrink-0">
+          <button
+            onClick={handleSaveToCases}
+            className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-amber-300 border border-amber-500/30 rounded-lg text-[11px] font-bold"
+            title="Save to Cases"
+          >
+            Save
+          </button>
+          <button
+            onClick={handlePrintPdf}
+            className="px-2.5 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-[11px] font-bold flex items-center space-x-1"
+            title="Print PDF"
+          >
+            <Printer className="w-3 h-3" />
+            <span>PDF</span>
+          </button>
+        </div>
+      </div>
+
       {/* =========================================================================
-          LEFT PANE (50% WIDTH): QRI AI CHAT & JOURNEY LOG
+          LEFT PANE (50% WIDTH ON DESKTOP): QRI AI CHAT & JOURNEY LOG
       ========================================================================= */}
-      <section className="w-full lg:w-1/2 flex flex-col h-1/2 lg:h-full border-b lg:border-b-0 lg:border-r border-slate-800 bg-slate-950 flex-shrink-0">
+      <section
+        className={`w-full lg:w-1/2 flex flex-col h-full border-b lg:border-b-0 lg:border-r border-slate-800 bg-slate-950 flex-shrink-0 ${
+          mobileTab === 'chat' ? 'flex' : 'hidden lg:flex'
+        }`}
+      >
         {/* Chat Pane Header */}
         <div className="h-14 px-4 bg-slate-900 border-b border-slate-800 flex items-center justify-between flex-shrink-0">
           <div className="flex items-center space-x-2.5">
@@ -355,9 +406,13 @@ export default function QuotationAgentPage() {
       </section>
 
       {/* =========================================================================
-          RIGHT PANE (50% WIDTH): LIVE EDITABLE A4 QUOTATION DOCUMENT WITH FIXED PDF LETTERHEAD BACKGROUND
+          RIGHT PANE (50% WIDTH ON DESKTOP): LIVE EDITABLE A4 QUOTATION DOCUMENT WITH FIXED PDF LETTERHEAD BACKGROUND
       ========================================================================= */}
-      <section className="w-full lg:w-1/2 flex flex-col h-1/2 lg:h-full bg-slate-900/60 overflow-hidden">
+      <section
+        className={`w-full lg:w-1/2 flex flex-col h-full bg-slate-900/60 overflow-hidden ${
+          mobileTab === 'document' ? 'flex' : 'hidden lg:flex'
+        }`}
+      >
         {/* Document Header & Actions Bar */}
         <div className="h-14 px-4 bg-slate-900 border-b border-slate-800 flex items-center justify-between flex-shrink-0 z-20">
           <div className="flex items-center space-x-2">

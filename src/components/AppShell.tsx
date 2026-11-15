@@ -14,6 +14,7 @@ import {
   ChevronRight,
   ShieldAlert,
   FileCog,
+  Wrench,
 } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 
@@ -31,13 +32,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     {
       href: '/agent/quotation',
       label: 'Quotation Agent',
+      shortLabel: 'Agent',
       icon: Sparkles,
       active: pathname.startsWith('/agent'),
       badge: 'AI Core',
     },
     {
       href: '/cases',
-      label: 'Active Cases',
+      label: 'Sales Navigator',
+      shortLabel: 'Cases',
       icon: FolderKanban,
       active: pathname === '/cases',
       count: activeCases.length,
@@ -45,21 +48,24 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     {
       href: '/settings/databank',
       label: 'Data Bank',
+      shortLabel: 'Data',
       icon: Database,
       active: pathname === '/settings/databank',
     },
     {
-      href: '/settings/templates',
-      label: 'Template Rules',
-      icon: FileCog,
-      active: pathname === '/settings/templates',
-      badge: 'Rules',
+      href: '/tools',
+      label: 'Engineering Tools',
+      shortLabel: 'Tools',
+      icon: Wrench,
+      active: pathname === '/tools',
+      badge: 'New',
     },
     {
-      href: '/settings/users',
-      label: 'User Access',
-      icon: Users,
-      active: pathname === '/settings/users',
+      href: '/settings/templates',
+      label: 'Settings & Rules',
+      shortLabel: 'Settings',
+      icon: FileCog,
+      active: pathname.startsWith('/settings'),
     },
   ];
 
@@ -69,9 +75,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-slate-950 text-slate-100 select-none">
-      {/* Sleek Icon-based Sidebar */}
-      <aside className="w-16 md:w-60 flex-shrink-0 bg-slate-950 border-r border-slate-800/80 flex flex-col justify-between z-30 transition-all duration-200">
+    <div className="flex flex-col md:flex-row h-[100dvh] w-screen overflow-hidden bg-slate-950 text-slate-100 select-none">
+      {/* Desktop Sidebar (hidden on mobile) */}
+      <aside className="hidden md:flex md:w-60 flex-shrink-0 bg-slate-950 border-r border-slate-800/80 flex-col justify-between z-30 transition-all duration-200">
         {/* Top: Brand Header */}
         <div>
           <div className="h-14 border-b border-slate-800/80 px-3 md:px-4 flex items-center justify-between">
@@ -164,10 +170,34 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
       </aside>
 
-      {/* Main Page Content Area */}
-      <div className="flex-1 flex flex-col h-full overflow-hidden bg-slate-950">
+      {/* Main Page Content Area (Account for mobile bottom nav) */}
+      <div className="flex-1 flex flex-col h-[calc(100dvh-3.5rem)] md:h-[100dvh] overflow-hidden bg-slate-950">
         {children}
       </div>
+
+      {/* Mobile Bottom Navigation Bar (Natural Thumb Zone) */}
+      <nav className="md:hidden h-14 bg-slate-950/95 backdrop-blur-md border-t border-slate-800 px-2 flex items-center justify-around z-40 pb-[env(safe-area-inset-bottom)] flex-shrink-0">
+        {navItems.map((item) => {
+          const Icon = item.icon;
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={`flex flex-col items-center justify-center flex-1 py-1 text-[10px] transition-colors relative ${
+                item.active ? 'text-amber-400 font-bold' : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <Icon className="w-4 h-4 mb-0.5" />
+              <span>{item.shortLabel}</span>
+              {item.count !== undefined && item.count > 0 && (
+                <span className="absolute top-1 right-3 w-3.5 h-3.5 rounded-full bg-amber-500 text-slate-950 text-[8px] font-mono font-bold flex items-center justify-center">
+                  {item.count}
+                </span>
+              )}
+            </Link>
+          );
+        })}
+      </nav>
     </div>
   );
 }

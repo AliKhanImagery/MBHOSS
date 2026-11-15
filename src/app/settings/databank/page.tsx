@@ -127,26 +127,70 @@ export default function DataBankPage() {
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 p-6 space-y-4 overflow-y-auto">
+      <main className="flex-1 p-3 sm:p-6 space-y-4 overflow-y-auto">
         {/* Search Bar */}
-        <div className="flex items-center justify-between gap-4">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 sm:gap-4">
           <div className="relative flex-1 max-w-md">
             <Search className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-2.5" />
             <input
               type="text"
-              placeholder="Search by supplier company, machine, SKU, or category..."
+              placeholder="Search supplier, item, SKU, or category..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full bg-slate-900 border border-slate-800 rounded-lg pl-9 pr-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-400 font-mono"
             />
           </div>
-          <div className="text-xs text-slate-400 font-mono">
-            Showing {filteredItems.length} of {dataBank.length} items
+          <div className="text-[11px] text-slate-400 font-mono flex items-center justify-between sm:justify-end">
+            <span>Showing {filteredItems.length} of {dataBank.length} items</span>
           </div>
         </div>
 
-        {/* Data Bank Table */}
-        <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-xl">
+        {/* Mobile View: Touch Cards (<md) */}
+        <div className="md:hidden space-y-2.5">
+          {filteredItems.map((item) => (
+            <div
+              key={item.id}
+              className="bg-slate-900 border border-slate-800 rounded-xl p-3.5 shadow-sm space-y-2"
+            >
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-xs text-white flex items-center space-x-1.5">
+                  <Building className="w-3 h-3 text-amber-400" />
+                  <span>{item.company}</span>
+                </span>
+                <span className="font-mono font-bold text-amber-400 text-xs">
+                  Rs. {new Intl.NumberFormat('en-PK').format(item.pricePKR)}
+                </span>
+              </div>
+              <div className="text-xs font-medium text-slate-200">
+                {item.machineName}
+              </div>
+              <div className="flex items-center justify-between text-[11px] text-slate-400 font-mono pt-1.5 border-t border-slate-800/80">
+                <span className="text-[10px] bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
+                  {item.lastCheckedDate}
+                </span>
+                <div className="flex items-center space-x-1">
+                  <button
+                    onClick={() => startEdit(item)}
+                    className="p-1.5 bg-slate-800 hover:bg-slate-700 text-amber-300 rounded text-xs"
+                    title="Edit"
+                  >
+                    <Edit2 className="w-3 h-3" />
+                  </button>
+                  <button
+                    onClick={() => deleteDataBankItem(item.id)}
+                    className="p-1.5 bg-slate-800 hover:bg-rose-500/20 text-rose-400 rounded text-xs"
+                    title="Delete"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Desktop View: Full Spreadsheet Table (>=md) */}
+        <div className="hidden md:block bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-xl">
           <div className="overflow-x-auto">
             <table className="w-full border-collapse text-xs text-left">
               <thead>

@@ -68,8 +68,55 @@ export default function ActiveCasesPage() {
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 p-6 space-y-4 overflow-y-auto">
-        <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-xl">
+      <main className="flex-1 p-3 sm:p-6 space-y-4 overflow-y-auto">
+        {/* Mobile View: High-Density Touch Cards (<md) */}
+        <div className="md:hidden space-y-2.5">
+          {activeCases.map((qc) => (
+            <div
+              key={qc.id}
+              onClick={() => handleOpenCase(qc.id)}
+              className="bg-slate-900 border border-slate-800 rounded-xl p-3.5 active:bg-slate-800/80 transition-colors shadow-sm space-y-2.5 cursor-pointer"
+            >
+              <div className="flex items-center justify-between">
+                <span className="font-mono font-bold text-xs text-amber-400">{qc.caseRef}</span>
+                <span className={`px-2 py-0.5 rounded text-[10px] font-mono border ${getStatusBadge(qc.status)}`}>
+                  {qc.status}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <div className="font-bold text-white flex items-center space-x-1.5">
+                  <Building className="w-3.5 h-3.5 text-slate-400" />
+                  <span>{qc.clientName}</span>
+                </div>
+                <div className="font-mono font-bold text-slate-100">
+                  Rs. {new Intl.NumberFormat('en-PK').format(qc.totalPKR)}
+                </div>
+              </div>
+              <div className="flex items-center justify-between text-[11px] text-slate-500 font-mono pt-1.5 border-t border-slate-800/80">
+                <span>{qc.itemCount} items • {qc.createdAt}</span>
+                <div className="flex items-center space-x-2" onClick={(e) => e.stopPropagation()}>
+                  <button
+                    onClick={() => handleOpenCase(qc.id)}
+                    className="text-amber-400 font-sans font-bold text-[10px] flex items-center space-x-0.5"
+                  >
+                    <span>Open</span>
+                    <ArrowRight className="w-3 h-3" />
+                  </button>
+                  <button
+                    onClick={() => deleteCase(qc.id)}
+                    className="p-1 text-slate-500 hover:text-rose-400"
+                    title="Delete Case"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Desktop View: Full Spreadsheet Table (>=md) */}
+        <div className="hidden md:block bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-xl">
           <div className="overflow-x-auto">
             <table className="w-full border-collapse text-xs text-left">
               <thead>
