@@ -10,16 +10,11 @@ import {
   Users,
   LogOut,
   Zap,
-  Layers,
-  ChevronRight,
-  ShieldAlert,
   FileCog,
   Wrench,
   Search,
   Bell,
-  Sun,
-  Moon,
-  ExternalLink,
+  RefreshCw,
 } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 
@@ -80,204 +75,137 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <div className="flex flex-col h-[100dvh] w-screen overflow-hidden bg-[#0E0F12] text-slate-100 select-none p-1 sm:p-2.5 md:p-3.5">
+    <div className="flex flex-col md:flex-row h-[100dvh] w-screen overflow-hidden bg-[#F4F5F7] text-slate-900 select-none">
       {/* =========================================================================
-          1. OUTER HEADER (Desktop/Tablet Branding Bar - Matches Reference Top)
+          1. MINIMALIST LEFT SIDE NAVIGATION RAIL (Full Height, Edge-to-Edge)
       ========================================================================= */}
-      <header className="hidden sm:flex h-9 px-3 items-center justify-between text-sm text-slate-300 flex-shrink-0 mb-2">
-        <div className="flex items-center space-x-2.5">
-          <div className="w-5 h-5 rounded-md bg-[#FF4D6D] flex items-center justify-center text-white font-black shadow-sm">
-            <Zap className="w-3.5 h-3.5 fill-white" />
-          </div>
-          <span className="font-bold text-base tracking-tight text-white flex items-center space-x-2">
-            <span>Quantix</span>
-            <span className="text-xs px-2 py-0.5 bg-white/10 text-slate-300 rounded-full font-mono">
-              Qri OS
-            </span>
-          </span>
-        </div>
+      <aside className="hidden md:flex w-16 lg:w-20 bg-white border-r border-slate-200/80 flex-col items-center py-5 justify-between flex-shrink-0 z-30 shadow-xs">
+        {/* Top: Logo & Search Circle & Nav Icons */}
+        <div className="flex flex-col items-center space-y-6 w-full">
+          {/* Top Brand Logo */}
+          <Link
+            href="/agent/quotation"
+            className="w-10 h-10 rounded-2xl bg-slate-950 hover:bg-[#FF4D6D] text-white flex items-center justify-center shadow-md transition-all active:scale-95"
+            title="Qri Quantix OS"
+          >
+            <Zap className="w-5 h-5 fill-white text-white" />
+          </Link>
 
-        <div className="flex items-center space-x-4 text-xs font-semibold text-slate-400">
-          <span className="text-slate-300">{currentSection.label}</span>
-          <div className="flex items-center space-x-1.5 text-slate-400">
-            <span className="w-2 h-2 rounded-full bg-[#22C55E]"></span>
-            <span className="font-mono text-xs">Live • LocalStore</span>
-          </div>
-        </div>
-      </header>
+          {/* Circular Search Trigger */}
+          <button
+            onClick={() => router.push('/settings/databank')}
+            className="w-10 h-10 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center border border-slate-200 transition-all active:scale-95 cursor-pointer"
+            title="Search Data Bank"
+          >
+            <Search className="w-4 h-4" />
+          </button>
 
-      {/* =========================================================================
-          2. MAIN FLOATING ISLAND CANVAS (Light Silver-Gray #ECECF1)
-      ========================================================================= */}
-      <div className="flex-1 flex flex-row rounded-2xl sm:rounded-[28px] md:rounded-[32px] bg-[#ECECF1] text-[#111216] shadow-2xl overflow-hidden border border-white/10 relative">
-        {/* =======================================================================
-            2A. LEFT SIDE PANEL NAVIGATION (Matches Reference Left Navigation Rail)
-        ======================================================================= */}
-        <aside className="hidden md:flex w-16 lg:w-20 bg-[#ECECF1] border-r border-[#D8D8E2] flex-col items-center py-5 justify-between flex-shrink-0 z-30 select-none">
-          {/* Top: Logo & Search Circle & Nav Icons */}
-          <div className="flex flex-col items-center space-y-6 w-full">
-            {/* Top Brand Mark */}
-            <Link
-              href="/agent/quotation"
-              className="w-10 h-10 rounded-2xl bg-[#111216] text-white flex items-center justify-center shadow-md hover:scale-105 transition-transform"
-              title="Qri Quantix OS"
-            >
-              <Zap className="w-5 h-5 fill-white text-white" />
-            </Link>
-
-            {/* Circular Search Button */}
-            <button
-              onClick={() => router.push('/settings/databank')}
-              className="w-10 h-10 rounded-full bg-[#111216] text-white hover:bg-slate-800 flex items-center justify-center shadow-md transition-transform active:scale-95 cursor-pointer"
-              title="Search Data Bank"
-            >
-              <Search className="w-4 h-4" />
-            </button>
-
-            {/* Navigation Icons (Including Tools in Navigation Panel!) */}
-            <nav className="flex flex-col items-center space-y-3 w-full px-2 pt-2">
-              {navItems.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className={`w-11 h-11 rounded-2xl flex items-center justify-center transition-all group relative ${
-                      item.active
-                        ? 'bg-[#111216] text-[#FF4D6D] shadow-md shadow-black/20 font-bold scale-105'
-                        : 'text-[#505460] hover:text-[#111216] hover:bg-black/5'
-                    }`}
-                    title={item.label}
-                  >
-                    <Icon className="w-5 h-5 transition-transform group-hover:scale-110" />
-                    {item.count !== undefined && item.count > 0 && (
-                      <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[#FF4D6D] text-white text-[9px] font-mono font-bold flex items-center justify-center shadow-sm">
-                        {item.count}
-                      </span>
-                    )}
-                  </Link>
-                );
-              })}
-            </nav>
-          </div>
-
-          {/* Bottom: Sign Out */}
-          <div className="flex flex-col items-center w-full px-2">
-            <button
-              onClick={handleLogout}
-              className="w-10 h-10 rounded-2xl flex items-center justify-center text-[#686C78] hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
-              title="Sign Out"
-            >
-              <LogOut className="w-5 h-5" />
-            </button>
-          </div>
-        </aside>
-
-        {/* =======================================================================
-            2B. WORKSPACE (To the right of the Left Navigation Rail)
-        ======================================================================= */}
-        <div className="flex-1 flex flex-col h-full overflow-hidden bg-[#ECECF1]">
-          {/* Top Horizontal Bar: Pill Nav + Session Controls */}
-          <div className="h-14 sm:h-16 px-4 sm:px-6 bg-[#ECECF1] border-b border-[#D8D8E2]/80 flex items-center justify-between flex-shrink-0 z-20">
-            {/* Horizontal Pill Navigation (Matches Reference) */}
-            <nav className="hidden sm:flex items-center space-x-1.5 overflow-x-auto py-1">
-              {navItems.map((item) => (
+          {/* Primary Nav Icons (Tools inside Left Panel!) */}
+          <nav className="flex flex-col items-center space-y-3 w-full px-2 pt-2">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              return (
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`px-4 sm:px-5 py-2 rounded-full text-xs sm:text-sm font-semibold transition-all flex items-center space-x-2 ${
+                  className={`w-11 h-11 rounded-2xl flex items-center justify-center transition-all group relative ${
                     item.active
-                      ? 'bg-[#FF4D6D] text-white shadow-md shadow-[#FF4D6D]/30'
-                      : 'text-[#4A4E58] hover:text-[#111216] hover:bg-[#DCDCE4]'
+                      ? 'bg-slate-950 text-white shadow-md shadow-slate-950/20 font-bold scale-105'
+                      : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100'
                   }`}
+                  title={item.label}
                 >
-                  <span>{item.label}</span>
+                  <Icon className={`w-5 h-5 transition-transform group-hover:scale-110 ${item.active ? 'text-[#FF4D6D]' : ''}`} />
                   {item.count !== undefined && item.count > 0 && (
-                    <span
-                      className={`text-xs px-2 py-0.5 rounded-full font-mono font-bold ${
-                        item.active ? 'bg-white/20 text-white' : 'bg-slate-300 text-slate-800'
-                      }`}
-                    >
+                    <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[#FF4D6D] text-white text-[9px] font-mono font-bold flex items-center justify-center shadow-sm">
                       {item.count}
                     </span>
                   )}
                 </Link>
-              ))}
-            </nav>
+              );
+            })}
+          </nav>
+        </div>
 
-            {/* Mobile Header Title */}
-            <div className="sm:hidden font-bold text-base text-[#111216] truncate">
+        {/* Bottom: Sign Out */}
+        <div className="flex flex-col items-center w-full px-2">
+          <button
+            onClick={handleLogout}
+            className="w-10 h-10 rounded-2xl flex items-center justify-center text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+            title="Sign Out"
+          >
+            <LogOut className="w-5 h-5" />
+          </button>
+        </div>
+      </aside>
+
+      {/* =========================================================================
+          2. MAIN WORKSPACE (Full Screen Space, Edge-to-Edge)
+      ========================================================================= */}
+      <div className="flex-1 flex flex-col h-[calc(100dvh-3.5rem)] md:h-[100dvh] overflow-hidden bg-[#F4F5F7]">
+        {/* Minimalist Top App Bar (ZERO Navigation Repetition) */}
+        <header className="h-14 sm:h-16 px-4 sm:px-8 bg-white border-b border-slate-200/80 flex items-center justify-between flex-shrink-0 z-20">
+          {/* Left: Section Title in Helvetica */}
+          <div className="flex items-center space-x-3">
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 font-sans">
               {currentSection.label}
-            </div>
+            </h1>
+            <span className="hidden sm:inline-flex items-center space-x-1.5 text-xs text-slate-400 font-medium pl-2 border-l border-slate-200">
+              <span className="w-2 h-2 rounded-full bg-[#22C55E]"></span>
+              <span>Online • LocalStore</span>
+            </span>
+          </div>
 
-            {/* Right Controls: Theme Pill, Bell, Avatar */}
-            <div className="flex items-center space-x-2.5">
-              {/* Theme Toggle Pill */}
-              <div className="hidden lg:flex items-center bg-white border border-[#D5D5DF] rounded-full p-1 shadow-xs">
-                <button className="px-2 py-1 rounded-full text-xs font-semibold bg-[#111216] text-white">
-                  <Moon className="w-3.5 h-3.5" />
-                </button>
-                <button className="px-2 py-1 rounded-full text-xs font-semibold text-slate-500 hover:text-black">
-                  <Sun className="w-3.5 h-3.5" />
-                </button>
+          {/* Right Controls: Quick Search, Notification, User Pill */}
+          <div className="flex items-center space-x-3">
+            <button
+              onClick={() => window.location.reload()}
+              className="hidden sm:flex items-center space-x-1 px-3 py-1.5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold border border-slate-200 transition-colors"
+              title="Refresh Data"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              <span>Refresh</span>
+            </button>
+
+            {/* Notification Bell */}
+            <button
+              className="w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-200 flex items-center justify-center transition-colors"
+              title="Notifications"
+            >
+              <Bell className="w-4 h-4" />
+            </button>
+
+            {/* User Profile Pill */}
+            <div className="flex items-center space-x-2.5 bg-slate-100 border border-slate-200 pl-1.5 pr-3 py-1 rounded-full shadow-xs">
+              <div className="w-7 h-7 rounded-full bg-slate-900 text-white font-bold text-xs flex items-center justify-center">
+                {currentUser?.avatar || 'AK'}
               </div>
-
-              {/* Notification Bell */}
-              <button
-                className="w-9 h-9 rounded-full bg-white hover:bg-slate-100 text-slate-700 border border-[#D5D5DF] flex items-center justify-center shadow-xs transition-colors"
-                title="Notifications"
-              >
-                <Bell className="w-4 h-4" />
-              </button>
-
-              {/* User Avatar Circle */}
-              <div className="flex items-center space-x-2 bg-white border border-[#D5D5DF] pl-1 pr-3 py-1 rounded-full shadow-xs">
-                <div className="w-7 h-7 rounded-full bg-[#111216] text-[#FF4D6D] font-extrabold text-xs flex items-center justify-center">
-                  {currentUser?.avatar || 'AK'}
-                </div>
-                <span className="text-xs sm:text-sm font-bold text-[#111216] hidden sm:inline truncate max-w-[110px]">
+              <div className="hidden sm:flex flex-col text-left">
+                <span className="text-xs font-bold text-slate-900 leading-tight">
                   {currentUser?.name || 'Ali Khan'}
+                </span>
+                <span className="text-[10px] text-slate-500 font-medium leading-none">
+                  {currentUser?.role || 'Super Admin'}
                 </span>
               </div>
             </div>
           </div>
+        </header>
 
-          {/* Subheader: Page Title & Actions (Matches Reference 'Procurement Dashboard' text-3xl) */}
-          <div className="px-4 sm:px-6 pt-3 sm:pt-4 pb-2 flex items-center justify-between flex-shrink-0">
-            <div className="flex items-center space-x-3">
-              <button
-                onClick={() => router.push('/settings/databank')}
-                className="md:hidden w-8 h-8 rounded-full bg-[#111216] text-white flex items-center justify-center"
-              >
-                <Search className="w-3.5 h-3.5" />
-              </button>
-              <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight text-[#111216]">
-                {currentSection.label}
-              </h1>
-            </div>
-
-            <div className="flex items-center space-x-2">
-              <button
-                onClick={() => window.location.reload()}
-                className="px-4 py-1.5 rounded-full bg-[#111216] hover:bg-slate-800 text-white text-xs sm:text-sm font-semibold shadow-sm transition-all cursor-pointer flex items-center space-x-1.5"
-              >
-                <span>Refresh</span>
-                <span className="text-slate-400">↻</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Main Content Workspace */}
-          <div className="flex-1 flex flex-col overflow-hidden p-2 sm:p-4 md:p-6 pt-1 sm:pt-2">
-            {children}
-          </div>
+        {/* Workspace Content (Full Screen Space, Edge-to-Edge) */}
+        <div
+          className={`flex-1 flex flex-col overflow-hidden ${
+            pathname.startsWith('/agent') ? 'p-2 sm:p-3' : 'p-3 sm:p-6'
+          }`}
+        >
+          {children}
         </div>
       </div>
 
       {/* =========================================================================
-          3. MOBILE BOTTOM NAVIGATION (Including Tools inside Navigation)
+          3. MOBILE BOTTOM NAVIGATION (Phones Only, Fixed Bottom)
       ========================================================================= */}
-      <nav className="md:hidden h-14 bg-[#101114]/95 backdrop-blur-md border-t border-slate-800/80 px-2 flex items-center justify-around z-40 pb-[env(safe-area-inset-bottom)] flex-shrink-0 mt-1">
+      <nav className="md:hidden h-14 bg-white border-t border-slate-200 px-2 flex items-center justify-around z-40 pb-[env(safe-area-inset-bottom)] flex-shrink-0 shadow-lg">
         {navItems.map((item) => {
           const Icon = item.icon;
           return (
@@ -285,7 +213,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               key={item.href}
               href={item.href}
               className={`flex flex-col items-center justify-center flex-1 py-1 text-xs transition-all relative ${
-                item.active ? 'text-[#FF4D6D] font-bold scale-105' : 'text-slate-400 hover:text-slate-200'
+                item.active ? 'text-[#FF4D6D] font-bold scale-105' : 'text-slate-400 hover:text-slate-600'
               }`}
             >
               <Icon className="w-5 h-5 mb-0.5" />

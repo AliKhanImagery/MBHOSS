@@ -132,75 +132,75 @@ ${rawExtracted}`;
   };
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-slate-950 overflow-hidden text-slate-100 select-none">
-      {/* Top Header */}
-      <header className="h-14 bg-slate-900 border-b border-slate-800 px-6 flex items-center justify-between flex-shrink-0">
+    <div className="flex-1 flex flex-col h-full bg-transparent overflow-hidden text-slate-900 select-none">
+      {/* Sub Header & Actions Bar */}
+      <div className="bg-white border border-slate-200/80 rounded-2xl px-5 py-3.5 mb-4 flex items-center justify-between flex-shrink-0 shadow-xs">
         <div className="flex items-center space-x-3">
-          <div className="w-8 h-8 rounded-lg bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400">
-            <FileCog className="w-4 h-4" />
+          <div className="w-9 h-9 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600">
+            <FileCog className="w-5 h-5" />
           </div>
           <div>
-            <h1 className="text-sm font-bold text-white flex items-center space-x-2">
-              <span>Template Settings &amp; Master Commercial Rules</span>
-              <span className="text-[10px] bg-slate-800 text-slate-300 px-2 py-0.5 rounded font-mono">
+            <h1 className="text-sm sm:text-base font-bold text-slate-900 flex items-center space-x-2">
+              <span>Master Commercial Rules &amp; Letterhead</span>
+              <span className="text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full font-mono font-semibold">
                 Active in Qri AI
               </span>
             </h1>
-            <p className="text-[10px] text-slate-400">
-              Upload global letterhead backgrounds and extract master T&amp;C rules from Word (.docx) files
+            <p className="text-xs text-slate-500">
+              Upload global letterhead backgrounds (PDF) and extract master T&amp;C rules from Word (.docx) files
             </p>
           </div>
         </div>
 
         <div className="flex items-center space-x-2">
           {saveSuccess && (
-            <span className="text-xs text-emerald-400 font-semibold flex items-center space-x-1 animate-in fade-in">
+            <span className="hidden sm:flex text-xs text-emerald-600 font-semibold items-center space-x-1 animate-in fade-in">
               <CheckCircle2 className="w-3.5 h-3.5" />
-              <span>Rules Saved to Storage!</span>
+              <span>Rules Saved!</span>
             </span>
           )}
           <button
             onClick={resetMasterTemplateRules}
-            className="flex items-center space-x-1 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium border border-slate-700 cursor-pointer"
+            className="flex items-center space-x-1 px-3 py-1.5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold border border-slate-200 cursor-pointer transition-colors"
             title="Reset Master Template Rules to Default"
           >
-            <RotateCcw className="w-3 h-3" />
-            <span>Reset Defaults</span>
+            <RotateCcw className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Reset Defaults</span>
           </button>
           <button
             onClick={handleSaveManualRules}
-            className="flex items-center space-x-1.5 px-3.5 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold shadow-md cursor-pointer transition-all"
+            className="flex items-center space-x-1.5 px-4 py-1.5 rounded-full bg-slate-900 hover:bg-black text-white text-xs font-bold shadow-sm cursor-pointer transition-all"
           >
             <Save className="w-3.5 h-3.5" />
             <span>Save Rules</span>
           </button>
         </div>
-      </header>
+      </div>
 
       {/* Main Content Area */}
-      <main className="flex-1 p-6 space-y-6 overflow-y-auto">
+      <main className="flex-1 space-y-4 overflow-y-auto pr-1">
         {/* TWO UPLOAD ZONES ROW */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* UPLOAD ZONE 1: GLOBAL LETTERHEAD (PDF) */}
-          <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4 shadow-xl flex flex-col justify-between">
+          <div className="bg-white border border-slate-200/80 rounded-2xl p-5 space-y-4 shadow-xs flex flex-col justify-between">
             <div>
-              <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-                <div className="flex items-center space-x-2">
-                  <div className="w-7 h-7 rounded-lg bg-blue-500/15 border border-blue-500/30 flex items-center justify-center text-blue-400 font-bold">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div className="flex items-center space-x-2.5">
+                  <div className="w-7 h-7 rounded-lg bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-600 text-xs font-bold">
                     1
                   </div>
                   <div>
-                    <h2 className="text-xs font-bold text-white uppercase tracking-wider">
+                    <h2 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
                       Global Letterhead (PDF)
                     </h2>
-                    <p className="text-[10px] text-slate-400">
+                    <p className="text-[11px] text-slate-500">
                       Visual background template for the Live Quotation Preview
                     </p>
                   </div>
                 </div>
 
                 {globalLetterheadPdf && (
-                  <span className="text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded font-mono font-bold flex items-center space-x-1">
+                  <span className="text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full font-mono font-bold flex items-center space-x-1">
                     <CheckCircle2 className="w-3 h-3" />
                     <span>Active PDF</span>
                   </span>
@@ -208,8 +208,8 @@ ${rawExtracted}`;
               </div>
 
               {pdfUploadNotice && (
-                <div className="mt-3 p-2.5 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs flex items-center space-x-2">
-                  <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+                <div className="mt-3 p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center space-x-2">
+                  <CheckCircle2 className="w-4 h-4 flex-shrink-0 text-emerald-600" />
                   <span>{pdfUploadNotice}</span>
                 </div>
               )}
@@ -225,63 +225,63 @@ ${rawExtracted}`;
 
               <div
                 onClick={() => pdfInputRef.current?.click()}
-                className="mt-4 border-2 border-dashed border-slate-700 hover:border-amber-400/80 bg-slate-950/60 hover:bg-slate-950 rounded-xl p-6 flex flex-col items-center justify-center text-center cursor-pointer transition-all group"
+                className="mt-4 border-2 border-dashed border-slate-200 hover:border-[#FF4D6D] bg-slate-50/70 hover:bg-white rounded-xl p-6 flex flex-col items-center justify-center text-center cursor-pointer transition-all group"
               >
-                <div className="w-12 h-12 rounded-full bg-slate-800 group-hover:bg-amber-500/20 flex items-center justify-center text-slate-400 group-hover:text-amber-400 transition-colors mb-2">
+                <div className="w-12 h-12 rounded-full bg-white group-hover:bg-rose-50 border border-slate-200 group-hover:border-rose-200 flex items-center justify-center text-slate-500 group-hover:text-[#FF4D6D] transition-colors mb-2 shadow-xs">
                   <Upload className="w-6 h-6" />
                 </div>
-                <div className="font-semibold text-xs text-slate-200 group-hover:text-amber-300">
+                <div className="font-bold text-xs text-slate-800 group-hover:text-[#FF4D6D]">
                   {letterheadFileName ? 'Replace Letterhead PDF' : 'Click to Upload Letterhead PDF'}
                 </div>
-                <p className="text-[10px] text-slate-500 mt-1 max-w-xs">
+                <p className="text-[11px] text-slate-500 mt-1 max-w-xs">
                   Upload an official pre-printed blank letterhead PDF (A4 format). Saved into localStorage as visual background.
                 </p>
               </div>
 
               {letterheadFileName && (
-                <div className="mt-3 p-2 bg-slate-950 border border-slate-800 rounded-lg flex items-center justify-between text-xs">
-                  <div className="flex items-center space-x-2 text-slate-300 truncate font-mono text-[11px]">
-                    <FileText className="w-4 h-4 text-amber-400 flex-shrink-0" />
-                    <span className="truncate">{letterheadFileName}</span>
+                <div className="mt-3 p-2.5 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between text-xs">
+                  <div className="flex items-center space-x-2 text-slate-800 truncate font-mono text-[11px]">
+                    <FileText className="w-4 h-4 text-[#FF4D6D] flex-shrink-0" />
+                    <span className="truncate font-semibold">{letterheadFileName}</span>
                   </div>
-                  <div className="flex items-center space-x-1.5 flex-shrink-0">
+                  <div className="flex items-center space-x-1 flex-shrink-0">
                     <button
                       onClick={() => setShowPdfPreview(!showPdfPreview)}
-                      className="p-1 text-slate-400 hover:text-white"
+                      className="p-1.5 text-slate-600 hover:text-slate-900 rounded-lg hover:bg-slate-200/60"
                       title="Preview PDF"
                     >
-                      <Eye className="w-3.5 h-3.5" />
+                      <Eye className="w-4 h-4" />
                     </button>
                     <button
                       onClick={handleRemovePdf}
-                      className="p-1 text-slate-400 hover:text-rose-400"
+                      className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50"
                       title="Remove Letterhead"
                     >
-                      <Trash2 className="w-3.5 h-3.5" />
+                      <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
                 </div>
               )}
             </div>
 
-            <div className="pt-3 border-t border-slate-800 text-[10px] text-slate-500 font-mono">
+            <div className="pt-3 border-t border-slate-100 text-[11px] text-slate-400 font-mono">
               * The uploaded letterhead is fixed at z-index: 0 on the live document preview.
             </div>
           </div>
 
           {/* UPLOAD ZONE 2: QUOTATION FORMAT & T&CS (DOCX) */}
-          <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4 shadow-xl flex flex-col justify-between">
+          <div className="bg-white border border-slate-200/80 rounded-2xl p-5 space-y-4 shadow-xs flex flex-col justify-between">
             <div>
-              <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-                <div className="flex items-center space-x-2">
-                  <div className="w-7 h-7 rounded-lg bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 font-bold">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div className="flex items-center space-x-2.5">
+                  <div className="w-7 h-7 rounded-lg bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600 text-xs font-bold">
                     2
                   </div>
                   <div>
-                    <h2 className="text-xs font-bold text-white uppercase tracking-wider">
+                    <h2 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
                       Quotation Format &amp; T&amp;Cs (DOCX)
                     </h2>
-                    <p className="text-[10px] text-slate-400">
+                    <p className="text-[11px] text-slate-500">
                       Extracts commercial terms &amp; conditions to enforce AI compliance
                     </p>
                   </div>
@@ -290,15 +290,15 @@ ${rawExtracted}`;
                 <button
                   type="button"
                   onClick={handleLoadSampleTerms}
-                  className="text-[10px] text-amber-400 hover:underline font-mono"
+                  className="text-xs text-[#FF4D6D] hover:underline font-semibold"
                 >
                   Load Sample T&amp;Cs
                 </button>
               </div>
 
               {docxUploadNotice && (
-                <div className="mt-3 p-2.5 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-300 text-xs flex items-center space-x-2">
-                  <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+                <div className="mt-3 p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs flex items-center space-x-2">
+                  <CheckCircle2 className="w-4 h-4 flex-shrink-0 text-amber-600" />
                   <span>{docxUploadNotice}</span>
                 </div>
               )}
@@ -314,50 +314,50 @@ ${rawExtracted}`;
 
               <div
                 onClick={() => docxInputRef.current?.click()}
-                className="mt-4 border-2 border-dashed border-slate-700 hover:border-emerald-400/80 bg-slate-950/60 hover:bg-slate-950 rounded-xl p-6 flex flex-col items-center justify-center text-center cursor-pointer transition-all group"
+                className="mt-4 border-2 border-dashed border-slate-200 hover:border-emerald-500 bg-slate-50/70 hover:bg-white rounded-xl p-6 flex flex-col items-center justify-center text-center cursor-pointer transition-all group"
               >
-                <div className="w-12 h-12 rounded-full bg-slate-800 group-hover:bg-emerald-500/20 flex items-center justify-center text-slate-400 group-hover:text-emerald-400 transition-colors mb-2">
+                <div className="w-12 h-12 rounded-full bg-white group-hover:bg-emerald-50 border border-slate-200 group-hover:border-emerald-200 flex items-center justify-center text-slate-500 group-hover:text-emerald-600 transition-colors mb-2 shadow-xs">
                   {isExtractingDocx ? (
-                    <Sparkles className="w-6 h-6 animate-spin text-emerald-400" />
+                    <Sparkles className="w-6 h-6 animate-spin text-emerald-600" />
                   ) : (
                     <FileCheck className="w-6 h-6" />
                   )}
                 </div>
-                <div className="font-semibold text-xs text-slate-200 group-hover:text-emerald-300">
+                <div className="font-bold text-xs text-slate-800 group-hover:text-emerald-600">
                   {isExtractingDocx ? 'Extracting Text with Mammoth...' : 'Click to Upload .DOCX Template'}
                 </div>
-                <p className="text-[10px] text-slate-500 mt-1 max-w-xs">
+                <p className="text-[11px] text-slate-500 mt-1 max-w-xs">
                   Upload tender terms (.docx). Extracts raw text &amp; standard T&amp;Cs and saves into master_template_rules.
                 </p>
               </div>
             </div>
 
-            <div className="pt-3 border-t border-slate-800 text-[10px] text-slate-500 font-mono">
+            <div className="pt-3 border-t border-slate-100 text-[11px] text-slate-400 font-mono">
               * Extracted rules are fed into Qri AI prompt to trigger contextual compliance warnings.
             </div>
           </div>
         </div>
 
         {/* SECTION 2: MASTER RULES INSPECTOR & LIVE EDITOR */}
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4 shadow-xl">
-          <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+        <div className="bg-white border border-slate-200/80 rounded-2xl p-5 space-y-4 shadow-xs">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
             <div className="flex items-center space-x-2">
-              <ShieldCheck className="w-4 h-4 text-emerald-400" />
-              <h2 className="text-xs font-bold text-white uppercase tracking-wider">
+              <ShieldCheck className="w-4 h-4 text-emerald-600" />
+              <h2 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
                 Active Master Template Rules (`master_template_rules`)
               </h2>
             </div>
-            <div className="text-[10px] text-slate-400 font-mono">
+            <div className="text-[11px] text-slate-400 font-mono">
               Directly injected into Qri AI Gemini System Prompt
             </div>
           </div>
 
           {/* Explanation Alert */}
-          <div className="p-3 bg-slate-950 border border-amber-500/30 rounded-lg text-xs text-slate-300 flex items-start space-x-2.5">
-            <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
-            <div className="space-y-1 text-[11px] leading-relaxed">
-              <span className="font-bold text-amber-300">Qri AI Commercial Governance Active:</span>
-              <p>
+          <div className="p-3.5 bg-amber-50/80 border border-amber-200 rounded-xl text-xs text-amber-900 flex items-start space-x-3">
+            <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+            <div className="space-y-1 text-xs leading-relaxed">
+              <span className="font-bold text-amber-950">Qri AI Commercial Governance Active:</span>
+              <p className="text-amber-900">
                 When a user asks for non-standard terms (e.g. <em>&quot;Give 90 days credit&quot;</em>, <em>&quot;12 weeks delivery&quot;</em>, or <em>&quot;0% margin&quot;</em>), Qri will update the live template as requested, but will <strong>automatically trigger a specific compliance warning</strong> in the chat journey log notifying the procurement staff of the policy deviation.
               </p>
             </div>
@@ -365,14 +365,14 @@ ${rawExtracted}`;
 
           {/* Editable Textarea */}
           <div>
-            <label className="block text-[11px] font-semibold text-slate-300 mb-1.5 font-mono">
+            <label className="block text-xs font-bold text-slate-700 mb-1.5 font-mono">
               Extracted Rules &amp; Standard Clauses (Editable):
             </label>
             <textarea
-              rows={12}
+              rows={10}
               value={rulesEditorText}
               onChange={(e) => setRulesEditorText(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3.5 text-xs font-mono text-slate-200 leading-relaxed focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/30 resize-y"
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3.5 text-xs font-mono text-slate-800 leading-relaxed focus:outline-none focus:border-[#FF4D6D] focus:bg-white resize-y shadow-inner"
               placeholder="Paste or extract master template rules here..."
             />
           </div>
@@ -381,18 +381,18 @@ ${rawExtracted}`;
 
       {/* PDF Preview Modal */}
       {showPdfPreview && globalLetterheadPdf && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4">
-          <div className="bg-slate-900 border border-slate-700 w-full max-w-4xl h-[85vh] rounded-xl overflow-hidden flex flex-col shadow-2xl">
-            <div className="p-3 bg-slate-950 border-b border-slate-800 flex items-center justify-between text-xs">
-              <span className="font-bold text-white">Letterhead Preview: {letterheadFileName}</span>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
+          <div className="bg-white border border-slate-200 w-full max-w-4xl h-[85vh] rounded-2xl overflow-hidden flex flex-col shadow-2xl">
+            <div className="p-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between text-xs">
+              <span className="font-bold text-slate-900">Letterhead Preview: {letterheadFileName}</span>
               <button
                 onClick={() => setShowPdfPreview(false)}
-                className="text-slate-400 hover:text-white"
+                className="text-slate-400 hover:text-slate-700 font-bold text-sm px-2"
               >
                 ✕
               </button>
             </div>
-            <div className="flex-1 bg-slate-950">
+            <div className="flex-1 bg-slate-100">
               <iframe
                 src={`${globalLetterheadPdf}#toolbar=0`}
                 className="w-full h-full border-0"

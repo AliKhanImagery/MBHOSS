@@ -192,28 +192,28 @@ export default function QuotationAgentPage() {
       </div>
 
       {/* =========================================================================
-          LEFT PANE (50% WIDTH ON DESKTOP): QRI AI CHAT (ONYX POD #16171B)
+          LEFT PANE (50% WIDTH ON DESKTOP): QRI AI CHAT (MINIMALIST LIGHT CARD)
       ========================================================================= */}
       <section
-        className={`w-full lg:w-1/2 flex flex-col h-full bg-[#16171B] rounded-2xl sm:rounded-3xl border border-white/5 text-white shadow-xl overflow-hidden flex-shrink-0 ${
+        className={`w-full lg:w-1/2 flex flex-col h-full bg-white rounded-2xl border border-slate-200/80 text-slate-900 shadow-xs overflow-hidden flex-shrink-0 ${
           mobileTab === 'chat' ? 'flex' : 'hidden lg:flex'
         }`}
       >
         {/* Chat Pane Header */}
-        <div className="h-16 px-5 sm:px-6 bg-[#16171B] border-b border-[#262830] flex items-center justify-between flex-shrink-0">
+        <div className="h-14 sm:h-16 px-5 sm:px-6 bg-white border-b border-slate-100 flex items-center justify-between flex-shrink-0">
           <div className="flex items-center space-x-3">
-            <div className="w-9 h-9 rounded-xl bg-[#FF4D6D]/15 border border-[#FF4D6D]/30 flex items-center justify-center text-[#FF4D6D]">
+            <div className="w-9 h-9 rounded-xl bg-rose-50 border border-rose-100 flex items-center justify-center text-[#FF4D6D]">
               <Bot className="w-5 h-5" />
             </div>
             <div>
               <div className="flex items-center space-x-2">
-                <span className="font-bold text-sm sm:text-base text-white">Qri AI Agent</span>
-                <span className="flex items-center space-x-1 text-xs px-2 py-0.5 rounded-full bg-[#22C55E]/20 text-[#34D399] font-mono font-bold">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#22C55E] animate-pulse"></span>
+                <span className="font-bold text-sm sm:text-base text-slate-900 font-sans">Qri AI Agent</span>
+                <span className="flex items-center space-x-1 text-[11px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-mono font-bold">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
                   <span>Rules Active</span>
                 </span>
               </div>
-              <div className="text-xs text-slate-400 font-medium">
+              <div className="text-xs text-slate-500 font-medium">
                 Procurement Router &amp; Proposal Engine
               </div>
             </div>
@@ -222,7 +222,7 @@ export default function QuotationAgentPage() {
           <div className="flex items-center space-x-2">
             <Link
               href="/settings/templates"
-              className="text-xs text-[#FF4D6D] hover:text-white bg-[#FF4D6D]/10 hover:bg-[#FF4D6D]/20 border border-[#FF4D6D]/30 px-3 py-1.5 rounded-full flex items-center space-x-1 font-semibold"
+              className="text-xs text-[#FF4D6D] hover:text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-3 py-1.5 rounded-full flex items-center space-x-1 font-semibold"
               title="Configure Global Letterhead & DOCX Rules"
             >
               <FileCog className="w-3.5 h-3.5" />
@@ -230,7 +230,7 @@ export default function QuotationAgentPage() {
             </Link>
             <button
               onClick={clearChat}
-              className="p-2 text-slate-400 hover:text-white rounded-full hover:bg-white/10 transition-colors cursor-pointer"
+              className="p-2 text-slate-400 hover:text-slate-700 rounded-full hover:bg-slate-100 transition-colors cursor-pointer"
               title="Clear Journey Log"
             >
               <RotateCcw className="w-4 h-4" />
@@ -239,7 +239,7 @@ export default function QuotationAgentPage() {
         </div>
 
         {/* Quick Action Chips */}
-        <div className="px-5 py-2.5 bg-[#121316] border-b border-[#262830] overflow-x-auto whitespace-nowrap flex items-center space-x-2">
+        <div className="px-5 py-2.5 bg-slate-50/80 border-b border-slate-100 overflow-x-auto whitespace-nowrap flex items-center space-x-2">
           <span className="text-xs text-slate-400 font-semibold mr-1">
             Prompt Chips:
           </span>
@@ -253,7 +253,7 @@ export default function QuotationAgentPage() {
             <button
               key={idx}
               onClick={() => handleSendMessage(suggestion)}
-              className="px-3.5 py-1.5 rounded-full text-xs transition-all cursor-pointer font-medium border bg-[#1A1B20] text-slate-200 border-[#2D303A] hover:border-[#FF4D6D] hover:text-white"
+              className="px-3.5 py-1.5 rounded-full text-xs transition-all cursor-pointer font-medium border bg-white text-slate-700 border-slate-200 hover:border-[#FF4D6D] hover:text-[#FF4D6D] shadow-2xs"
             >
               + {suggestion}
             </button>
@@ -270,7 +270,7 @@ export default function QuotationAgentPage() {
             if (isSystem) {
               return (
                 <div key={msg.id} className="flex items-center justify-center my-1.5">
-                  <div className="bg-[#1A1B20] border border-[#2D303A] text-slate-300 text-xs px-3.5 py-1 rounded-full font-mono flex items-center space-x-2 shadow-sm">
+                  <div className="bg-slate-100 border border-slate-200 text-slate-700 text-xs px-3.5 py-1 rounded-full font-mono flex items-center space-x-2 shadow-2xs">
                     <Sparkles className="w-3.5 h-3.5 text-[#FF4D6D]" />
                     <span>{msg.text}</span>
                   </div>
@@ -287,28 +287,28 @@ export default function QuotationAgentPage() {
                 <div
                   className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5 ${
                     isUser
-                      ? 'bg-blue-600 text-white'
+                      ? 'bg-slate-900 text-white'
                       : hasWarning
                       ? 'bg-[#FF4D6D] text-white font-black'
-                      : 'bg-gradient-to-tr from-[#FF4D6D] to-amber-400 text-slate-950 font-black shadow-md'
+                      : 'bg-rose-50 border border-rose-200 text-[#FF4D6D] font-bold shadow-xs'
                   }`}
                 >
-                  {isUser ? <UserIcon className="w-4 h-4" /> : <Bot className="w-4 h-4 text-white" />}
+                  {isUser ? <UserIcon className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
                 </div>
 
                 {/* Message Bubble */}
                 <div
-                  className={`max-w-[85%] rounded-2xl px-4 sm:px-5 py-3 text-sm leading-relaxed shadow-lg ${
+                  className={`max-w-[85%] rounded-2xl px-4 sm:px-5 py-3 text-sm leading-relaxed shadow-xs ${
                     isUser
-                      ? 'bg-blue-600 text-white rounded-tr-none'
+                      ? 'bg-slate-900 text-white rounded-tr-none'
                       : hasWarning
-                      ? 'bg-[#1E1920] border border-[#FF4D6D]/60 text-slate-100 rounded-tl-none'
-                      : 'bg-[#1E2026] border border-[#2B2E37] text-slate-200 rounded-tl-none'
+                      ? 'bg-rose-50 border border-rose-200 text-rose-950 rounded-tl-none'
+                      : 'bg-slate-100 border border-slate-200/80 text-slate-900 rounded-tl-none'
                   }`}
                 >
                   {/* Warning banner inside message if deviation occurred */}
                   {hasWarning && !isUser && (
-                    <div className="mb-2 pb-1.5 border-b border-[#FF4D6D]/30 flex items-center space-x-2 text-[#FF4D6D] font-bold text-xs">
+                    <div className="mb-2 pb-1.5 border-b border-rose-200 flex items-center space-x-2 text-rose-700 font-bold text-xs">
                       <AlertTriangle className="w-4 h-4" />
                       <span>MASTER TEMPLATE POLICY ALERT</span>
                     </div>
@@ -318,7 +318,7 @@ export default function QuotationAgentPage() {
 
                   <div
                     className={`text-xs mt-1.5 font-mono text-right ${
-                      isUser ? 'text-blue-200' : 'text-slate-500'
+                      isUser ? 'text-slate-400' : 'text-slate-500'
                     }`}
                   >
                     {msg.timestamp}
@@ -331,12 +331,12 @@ export default function QuotationAgentPage() {
           {/* AI Thinking Indicator */}
           {isAgentThinking && (
             <div className="flex items-start space-x-3 animate-in fade-in">
-              <div className="w-8 h-8 rounded-full bg-[#FF4D6D]/20 border border-[#FF4D6D]/40 flex items-center justify-center text-[#FF4D6D]">
+              <div className="w-8 h-8 rounded-full bg-rose-50 border border-rose-200 flex items-center justify-center text-[#FF4D6D]">
                 <Bot className="w-4 h-4 animate-bounce" />
               </div>
-              <div className="bg-[#1E2026] border border-[#2B2E37] rounded-2xl rounded-tl-none px-4 py-3 text-sm text-[#FF4D6D] flex items-center space-x-2">
+              <div className="bg-slate-100 border border-slate-200 rounded-2xl rounded-tl-none px-4 py-3 text-sm text-[#FF4D6D] flex items-center space-x-2">
                 <span className="w-2 h-2 rounded-full bg-[#FF4D6D] animate-ping"></span>
-                <span className="font-mono">
+                <span className="font-mono text-xs">
                   Qri AI is validating Master Rules &amp; calculating proposal...
                 </span>
               </div>
@@ -347,16 +347,16 @@ export default function QuotationAgentPage() {
         </div>
 
         {/* Bottom Input Area */}
-        <div className="p-3.5 sm:p-4 bg-[#121316] border-t border-[#262830] flex flex-col space-y-2 flex-shrink-0">
+        <div className="p-3.5 sm:p-4 bg-white border-t border-slate-100 flex flex-col space-y-2 flex-shrink-0">
           {attachedFileName && (
-            <div className="flex items-center justify-between bg-[#FF4D6D]/10 border border-[#FF4D6D]/30 text-[#FF4D6D] px-3.5 py-1.5 rounded-xl text-xs font-mono">
+            <div className="flex items-center justify-between bg-rose-50 border border-rose-200 text-[#FF4D6D] px-3.5 py-1.5 rounded-xl text-xs font-mono">
               <div className="flex items-center space-x-2 truncate">
                 <Paperclip className="w-3.5 h-3.5" />
-                <span className="truncate">Attached: {attachedFileName}</span>
+                <span className="truncate font-semibold">Attached: {attachedFileName}</span>
               </div>
               <button
                 onClick={() => setAttachedFileName(null)}
-                className="text-white hover:text-rose-300 ml-2"
+                className="text-slate-500 hover:text-rose-600 ml-2"
               >
                 ✕
               </button>
@@ -373,7 +373,7 @@ export default function QuotationAgentPage() {
             />
             <button
               onClick={() => fileInputRef.current?.click()}
-              className="p-2.5 text-slate-400 hover:text-white hover:bg-white/10 rounded-xl transition-colors cursor-pointer"
+              className="p-2.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
               title="Attach tender PDF or screenshot"
             >
               <Paperclip className="w-5 h-5" />
@@ -387,13 +387,13 @@ export default function QuotationAgentPage() {
                 if (e.key === 'Enter') handleSendMessage();
               }}
               placeholder="Tell Qri AI: e.g. 'Add 5 relays for Engro with 15% margin'..."
-              className="flex-1 bg-[#0E0F12] border border-[#2B2E37] rounded-xl px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-[#FF4D6D] font-sans"
+              className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#FF4D6D] focus:bg-white font-sans"
             />
 
             <button
               onClick={() => handleSendMessage()}
               disabled={isAgentThinking || (!inputPrompt.trim() && !attachedFileName)}
-              className="p-2.5 bg-[#FF4D6D] hover:bg-[#FA3B5E] disabled:opacity-40 text-white font-bold rounded-xl shadow-md shadow-[#FF4D6D]/30 cursor-pointer transition-all"
+              className="p-2.5 bg-[#FF4D6D] hover:bg-[#FA3B5E] disabled:opacity-40 text-white font-bold rounded-xl shadow-sm cursor-pointer transition-all"
             >
               <Send className="w-5 h-5" />
             </button>
@@ -402,50 +402,43 @@ export default function QuotationAgentPage() {
       </section>
 
       {/* =========================================================================
-          RIGHT PANE (50% WIDTH ON DESKTOP): LIVE EDITABLE QUOTATION (SLATE POD #484B53)
+          RIGHT PANE (50% WIDTH ON DESKTOP): LIVE EDITABLE QUOTATION
+          (Zero Top Obstruction to Exploit Full Vertical Space)
       ========================================================================= */}
       <section
-        className={`w-full lg:w-1/2 flex flex-col h-full bg-[#484B53] rounded-2xl sm:rounded-3xl border border-white/5 text-white shadow-xl overflow-hidden ${
+        className={`w-full lg:w-1/2 flex flex-col h-full bg-[#EAEDF2] rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden relative ${
           mobileTab === 'document' ? 'flex' : 'hidden lg:flex'
         }`}
       >
-        {/* Document Header & Actions Bar */}
-        <div className="h-16 px-5 sm:px-6 bg-[#484B53] border-b border-white/10 flex items-center justify-between flex-shrink-0 z-20">
-          <div className="flex items-center space-x-2.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-[#22C55E]"></span>
-            <span className="font-bold text-sm sm:text-base text-white">Live Quotation Preview</span>
-            <span className="text-xs bg-black/30 text-white px-2.5 py-1 rounded-full font-mono">
-              Ref: {templateState.quoteRef}
-            </span>
-          </div>
-
-          <div className="flex items-center space-x-2">
-            <button
-              onClick={() => addLineItem()}
-              className="px-3.5 py-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white text-xs sm:text-sm font-semibold transition-colors cursor-pointer"
-              title="Add blank line item manually"
-            >
-              + Item
-            </button>
-
-            <button
-              onClick={handleSaveToCases}
-              className="px-4 py-1.5 rounded-full bg-black hover:bg-slate-900 text-white text-xs sm:text-sm font-bold shadow-md cursor-pointer transition-colors"
-            >
-              Save Case
-            </button>
-
-            <button
-              onClick={handlePrintPdf}
-              className="px-4 py-1.5 rounded-full bg-[#FF4D6D] hover:bg-[#FA3B5E] text-white text-xs sm:text-sm font-bold shadow-md shadow-[#FF4D6D]/30 cursor-pointer transition-all"
-            >
-              Export PDF
-            </button>
-          </div>
+        {/* Floating Action Pill in Top-Right Gutter (ZERO vertical space lost!) */}
+        <div className="absolute top-3 right-4 z-20 flex items-center space-x-2 bg-white/95 backdrop-blur-md border border-slate-200/90 shadow-md rounded-full px-3 py-1.5 print:hidden">
+          <span className="text-xs font-mono font-bold text-slate-700 hidden sm:inline mr-1">
+            {templateState.quoteRef}
+          </span>
+          <button
+            onClick={() => addLineItem()}
+            className="px-2.5 py-1 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold transition-colors cursor-pointer"
+            title="Add blank line item manually"
+          >
+            + Item
+          </button>
+          <button
+            onClick={handleSaveToCases}
+            className="px-3 py-1 rounded-full bg-slate-900 hover:bg-black text-white text-xs font-bold shadow-xs cursor-pointer transition-colors"
+          >
+            Save
+          </button>
+          <button
+            onClick={handlePrintPdf}
+            className="px-3 py-1 rounded-full bg-[#FF4D6D] hover:bg-[#FA3B5E] text-white text-xs font-bold shadow-xs cursor-pointer transition-all flex items-center space-x-1"
+          >
+            <Printer className="w-3.5 h-3.5" />
+            <span>PDF</span>
+          </button>
         </div>
 
-        {/* Scrollable A4 Document Workspace Container */}
-        <div className="flex-1 overflow-y-auto p-4 md:p-6 flex justify-center bg-slate-950/80">
+        {/* Scrollable A4 Document Workspace Container (Mounts Directly at Top Edge) */}
+        <div className="flex-1 overflow-y-auto pt-2 sm:pt-3 pb-8 px-2 sm:px-4 flex justify-center bg-transparent relative">
           {/* THE PHYSICAL A4 PAPER CARD */}
           <div
             id="quotation-printable-document"
