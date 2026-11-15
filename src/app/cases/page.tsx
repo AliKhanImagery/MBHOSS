@@ -29,85 +29,57 @@ export default function ActiveCasesPage() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'Completed':
-        return 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30';
+        return 'bg-[#22C55E]/20 text-[#34D399] border-[#22C55E]/40 font-bold';
       case 'Sourcing':
-        return 'bg-amber-500/20 text-amber-300 border-amber-500/30';
+        return 'bg-[#FF4D6D]/20 text-[#FF4D6D] border-[#FF4D6D]/40 font-bold';
       default:
-        return 'bg-blue-500/20 text-blue-300 border-blue-500/30';
+        return 'bg-blue-500/20 text-blue-300 border-blue-500/30 font-bold';
     }
   };
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-slate-950 overflow-hidden text-slate-100">
-      {/* Header */}
-      <header className="h-14 bg-slate-900 border-b border-slate-800 px-6 flex items-center justify-between flex-shrink-0">
-        <div className="flex items-center space-x-3">
-          <div className="w-8 h-8 rounded-lg bg-blue-500/15 border border-blue-500/30 flex items-center justify-center text-blue-400">
-            <FolderKanban className="w-4 h-4" />
-          </div>
-          <div>
-            <h1 className="text-sm font-bold text-white flex items-center space-x-2">
-              <span>Active Quotation Cases</span>
-              <span className="text-[10px] bg-slate-800 text-slate-300 px-2 py-0.5 rounded font-mono">
-                {activeCases.length} Ongoing RFQs
-              </span>
-            </h1>
-            <p className="text-[10px] text-slate-400">
-              Track ongoing procurement quotations across Draft, Sourcing, and Completed states
-            </p>
-          </div>
-        </div>
-
-        <Link
-          href="/agent/quotation"
-          className="flex items-center space-x-1.5 px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 text-xs font-bold shadow-md shadow-amber-950/40 cursor-pointer transition-all"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          <span>New AI Quote</span>
-        </Link>
-      </header>
-
-      {/* Main Content */}
-      <main className="flex-1 p-3 sm:p-6 space-y-4 overflow-y-auto">
+    <div className="flex-1 flex flex-col h-full bg-transparent overflow-hidden text-slate-100">
+      {/* Main Content inside Onyx Pod */}
+      <main className="flex-1 space-y-4 overflow-y-auto">
         {/* Mobile View: High-Density Touch Cards (<md) */}
-        <div className="md:hidden space-y-2.5">
+        <div className="md:hidden space-y-3">
           {activeCases.map((qc) => (
             <div
               key={qc.id}
               onClick={() => handleOpenCase(qc.id)}
-              className="bg-slate-900 border border-slate-800 rounded-xl p-3.5 active:bg-slate-800/80 transition-colors shadow-sm space-y-2.5 cursor-pointer"
+              className="bg-[#16171B] border border-white/5 rounded-2xl p-4 active:bg-slate-800/80 transition-colors shadow-lg space-y-3 cursor-pointer"
             >
               <div className="flex items-center justify-between">
-                <span className="font-mono font-bold text-xs text-amber-400">{qc.caseRef}</span>
-                <span className={`px-2 py-0.5 rounded text-[10px] font-mono border ${getStatusBadge(qc.status)}`}>
+                <span className="font-mono font-bold text-sm text-[#FF4D6D]">{qc.caseRef}</span>
+                <span className={`px-2.5 py-1 rounded-full text-xs font-mono border ${getStatusBadge(qc.status)}`}>
                   {qc.status}
                 </span>
               </div>
-              <div className="flex items-center justify-between text-xs">
-                <div className="font-bold text-white flex items-center space-x-1.5">
-                  <Building className="w-3.5 h-3.5 text-slate-400" />
+              <div className="flex items-center justify-between">
+                <div className="font-bold text-base text-white flex items-center space-x-2">
+                  <Building className="w-4 h-4 text-slate-400" />
                   <span>{qc.clientName}</span>
                 </div>
-                <div className="font-mono font-bold text-slate-100">
+                <div className="font-mono font-bold text-base text-white">
                   Rs. {new Intl.NumberFormat('en-PK').format(qc.totalPKR)}
                 </div>
               </div>
-              <div className="flex items-center justify-between text-[11px] text-slate-500 font-mono pt-1.5 border-t border-slate-800/80">
+              <div className="flex items-center justify-between text-xs text-slate-400 font-mono pt-2 border-t border-[#262830]">
                 <span>{qc.itemCount} items • {qc.createdAt}</span>
                 <div className="flex items-center space-x-2" onClick={(e) => e.stopPropagation()}>
                   <button
                     onClick={() => handleOpenCase(qc.id)}
-                    className="text-amber-400 font-sans font-bold text-[10px] flex items-center space-x-0.5"
+                    className="text-[#FF4D6D] font-sans font-bold text-xs flex items-center space-x-1"
                   >
-                    <span>Open</span>
-                    <ArrowRight className="w-3 h-3" />
+                    <span>Open Quote</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
                   </button>
                   <button
                     onClick={() => deleteCase(qc.id)}
-                    className="p-1 text-slate-500 hover:text-rose-400"
+                    className="p-1 text-slate-400 hover:text-rose-400"
                     title="Delete Case"
                   >
-                    <Trash2 className="w-3.5 h-3.5" />
+                    <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
               </div>
@@ -115,70 +87,84 @@ export default function ActiveCasesPage() {
           ))}
         </div>
 
-        {/* Desktop View: Full Spreadsheet Table (>=md) */}
-        <div className="hidden md:block bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-xl">
+        {/* Desktop View: Full Spreadsheet Table inside Onyx Card (>=md) */}
+        <div className="hidden md:block bg-[#16171B] border border-white/5 rounded-3xl overflow-hidden shadow-2xl">
+          <div className="p-5 border-b border-[#262830] flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-bold text-white">Quotation Pipeline Cases</h2>
+              <p className="text-xs text-slate-400 mt-0.5">Tracking {activeCases.length} active client RFQs</p>
+            </div>
+            <Link
+              href="/agent/quotation"
+              className="px-4 py-2 rounded-full bg-[#FF4D6D] hover:bg-[#FA3B5E] text-white text-xs font-bold shadow-md shadow-[#FF4D6D]/30 flex items-center space-x-1.5 transition-all"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Create New Quote</span>
+            </Link>
+          </div>
+
           <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-xs text-left">
+            <table className="w-full border-collapse text-sm text-left">
               <thead>
-                <tr className="bg-slate-950/80 border-b border-slate-800 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-                  <th className="py-3 px-4">Quote Ref</th>
-                  <th className="py-3 px-4">Client Name</th>
-                  <th className="py-3 px-4 text-center">Status</th>
-                  <th className="py-3 px-4 text-center">Items</th>
-                  <th className="py-3 px-4 text-right">Total Amount (PKR)</th>
-                  <th className="py-3 px-4 text-center">Date Created</th>
-                  <th className="py-3 px-4 text-center">Actions</th>
+                <tr className="bg-[#121316] border-b border-[#262830] text-xs font-bold text-slate-400 uppercase tracking-wider">
+                  <th className="py-4 px-5">Quote Ref</th>
+                  <th className="py-4 px-5">Client Name</th>
+                  <th className="py-4 px-5 text-center">Status</th>
+                  <th className="py-4 px-5 text-center">Items</th>
+                  <th className="py-4 px-5 text-right">Total Amount (PKR)</th>
+                  <th className="py-4 px-5 text-center">Date Created</th>
+                  <th className="py-4 px-5 text-center">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800">
+              <tbody className="divide-y divide-[#23252E]">
                 {activeCases.map((qc) => (
                   <tr
                     key={qc.id}
                     onClick={() => handleOpenCase(qc.id)}
-                    className="hover:bg-slate-850/60 transition-colors cursor-pointer group"
+                    className="hover:bg-white/[0.03] transition-colors cursor-pointer group"
                   >
-                    <td className="py-3 px-4 font-mono font-bold text-amber-400">
+                    <td className="py-4 px-5 font-mono font-bold text-base text-[#FF4D6D]">
                       {qc.caseRef}
                     </td>
-                    <td className="py-3 px-4">
-                      <div className="font-bold text-white flex items-center space-x-1.5">
-                        <Building className="w-3 h-3 text-slate-400" />
+                    <td className="py-4 px-5">
+                      <div className="font-bold text-base text-white flex items-center space-x-2">
+                        <Building className="w-4 h-4 text-slate-400" />
                         <span>{qc.clientName}</span>
                       </div>
                     </td>
-                    <td className="py-3 px-4 text-center">
+                    <td className="py-4 px-5 text-center">
                       <span
-                        className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono border ${getStatusBadge(
+                        className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-mono border ${getStatusBadge(
                           qc.status
                         )}`}
                       >
                         {qc.status}
                       </span>
                     </td>
-                    <td className="py-3 px-4 text-center font-mono text-slate-300">
+                    <td className="py-4 px-5 text-center font-mono text-slate-300 font-medium">
                       {qc.itemCount} items
                     </td>
-                    <td className="py-3 px-4 text-right font-mono font-bold text-slate-100">
+                    <td className="py-4 px-5 text-right font-mono font-bold text-base text-white">
                       Rs. {new Intl.NumberFormat('en-PK').format(qc.totalPKR)}
                     </td>
-                    <td className="py-3 px-4 text-center font-mono text-slate-400 text-[11px]">
+                    <td className="py-4 px-5 text-center font-mono text-slate-400 text-xs">
                       {qc.createdAt}
                     </td>
-                    <td className="py-3 px-4 text-center" onClick={(e) => e.stopPropagation()}>
+                    <td className="py-4 px-5 text-center" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-center space-x-2">
                         <button
                           onClick={() => handleOpenCase(qc.id)}
-                          className="px-2.5 py-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded text-[10px] font-bold flex items-center space-x-1"
+                          className="px-3.5 py-1.5 bg-[#FF4D6D]/15 hover:bg-[#FF4D6D]/25 text-[#FF4D6D] border border-[#FF4D6D]/30 rounded-full text-xs font-bold flex items-center space-x-1"
                         >
-                          <span>Open in Qri</span>
-                          <ArrowRight className="w-3 h-3" />
+                          <span>Open</span>
+                          <ArrowRight className="w-3.5 h-3.5" />
                         </button>
                         <button
                           onClick={() => deleteCase(qc.id)}
-                          className="p-1 text-slate-500 hover:text-rose-400 rounded"
+                          className="p-1.5 text-slate-500 hover:text-rose-400 rounded-full hover:bg-white/5"
                           title="Delete Case"
                         >
-                          <Trash2 className="w-3.5 h-3.5" />
+                          <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
                     </td>

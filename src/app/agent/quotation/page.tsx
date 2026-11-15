@@ -144,77 +144,77 @@ export default function QuotationAgentPage() {
   };
 
   return (
-    <div className="flex-1 flex flex-col lg:flex-row h-full overflow-hidden bg-slate-950">
+    <div className="flex-1 flex flex-col lg:flex-row h-full overflow-hidden gap-3 sm:gap-4 md:gap-5 p-1 sm:p-2 md:p-3 bg-transparent">
       {/* Mobile Segmented View Control (Visible only on mobile/tablet < lg) */}
-      <div className="lg:hidden h-12 bg-slate-900 border-b border-slate-800 px-3 flex items-center justify-between flex-shrink-0 z-30">
-        <div className="flex bg-slate-950 p-0.5 rounded-lg border border-slate-800 flex-1 max-w-xs mr-2">
+      <div className="lg:hidden h-14 bg-white border border-[#D5D5DF] rounded-2xl px-3 flex items-center justify-between flex-shrink-0 z-30 shadow-sm">
+        <div className="flex bg-[#EAEAEF] p-1 rounded-xl flex-1 max-w-xs mr-2">
           <button
             onClick={() => setMobileTab('chat')}
-            className={`flex-1 py-1.5 rounded-md text-xs font-semibold flex items-center justify-center space-x-1.5 transition-all ${
+            className={`flex-1 py-2 rounded-lg text-xs font-bold flex items-center justify-center space-x-1.5 transition-all ${
               mobileTab === 'chat'
-                ? 'bg-amber-500 text-slate-950 shadow-sm font-bold'
-                : 'text-slate-400 hover:text-white'
+                ? 'bg-[#FF4D6D] text-white shadow-sm'
+                : 'text-slate-600 hover:text-black'
             }`}
           >
-            <Bot className="w-3.5 h-3.5" />
+            <Bot className="w-4 h-4" />
             <span>AI Chat</span>
           </button>
           <button
             onClick={() => setMobileTab('document')}
-            className={`flex-1 py-1.5 rounded-md text-xs font-semibold flex items-center justify-center space-x-1.5 transition-all ${
+            className={`flex-1 py-2 rounded-lg text-xs font-bold flex items-center justify-center space-x-1.5 transition-all ${
               mobileTab === 'document'
-                ? 'bg-amber-500 text-slate-950 shadow-sm font-bold'
-                : 'text-slate-400 hover:text-white'
+                ? 'bg-[#FF4D6D] text-white shadow-sm'
+                : 'text-slate-600 hover:text-black'
             }`}
           >
-            <FileText className="w-3.5 h-3.5" />
+            <FileText className="w-4 h-4" />
             <span>Quote (Rs. {formatPKR(templateState.grandTotal)})</span>
           </button>
         </div>
 
-        <div className="flex items-center space-x-1.5 flex-shrink-0">
+        <div className="flex items-center space-x-2 flex-shrink-0">
           <button
             onClick={handleSaveToCases}
-            className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-amber-300 border border-amber-500/30 rounded-lg text-[11px] font-bold"
+            className="px-3.5 py-2 bg-slate-900 hover:bg-black text-[#FF4D6D] rounded-xl text-xs font-bold transition-colors"
             title="Save to Cases"
           >
             Save
           </button>
           <button
             onClick={handlePrintPdf}
-            className="px-2.5 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-[11px] font-bold flex items-center space-x-1"
+            className="px-3.5 py-2 bg-[#FF4D6D] hover:bg-[#FA3B5E] text-white rounded-xl text-xs font-bold flex items-center space-x-1 shadow-sm"
             title="Print PDF"
           >
-            <Printer className="w-3 h-3" />
+            <Printer className="w-3.5 h-3.5" />
             <span>PDF</span>
           </button>
         </div>
       </div>
 
       {/* =========================================================================
-          LEFT PANE (50% WIDTH ON DESKTOP): QRI AI CHAT & JOURNEY LOG
+          LEFT PANE (50% WIDTH ON DESKTOP): QRI AI CHAT (ONYX POD #16171B)
       ========================================================================= */}
       <section
-        className={`w-full lg:w-1/2 flex flex-col h-full border-b lg:border-b-0 lg:border-r border-slate-800 bg-slate-950 flex-shrink-0 ${
+        className={`w-full lg:w-1/2 flex flex-col h-full bg-[#16171B] rounded-2xl sm:rounded-3xl border border-white/5 text-white shadow-xl overflow-hidden flex-shrink-0 ${
           mobileTab === 'chat' ? 'flex' : 'hidden lg:flex'
         }`}
       >
         {/* Chat Pane Header */}
-        <div className="h-14 px-4 bg-slate-900 border-b border-slate-800 flex items-center justify-between flex-shrink-0">
-          <div className="flex items-center space-x-2.5">
-            <div className="w-8 h-8 rounded-lg bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400">
-              <Bot className="w-4 h-4" />
+        <div className="h-16 px-5 sm:px-6 bg-[#16171B] border-b border-[#262830] flex items-center justify-between flex-shrink-0">
+          <div className="flex items-center space-x-3">
+            <div className="w-9 h-9 rounded-xl bg-[#FF4D6D]/15 border border-[#FF4D6D]/30 flex items-center justify-center text-[#FF4D6D]">
+              <Bot className="w-5 h-5" />
             </div>
             <div>
               <div className="flex items-center space-x-2">
-                <span className="font-bold text-xs text-white">Qri AI Agent</span>
-                <span className="flex items-center space-x-1 text-[9px] px-1.5 py-0.2 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 font-mono">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                  <span>Rules &amp; Data Bank Active</span>
+                <span className="font-bold text-sm sm:text-base text-white">Qri AI Agent</span>
+                <span className="flex items-center space-x-1 text-xs px-2 py-0.5 rounded-full bg-[#22C55E]/20 text-[#34D399] font-mono font-bold">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#22C55E] animate-pulse"></span>
+                  <span>Rules Active</span>
                 </span>
               </div>
-              <div className="text-[10px] text-slate-400 font-mono">
-                Conversational Procurement &amp; Policy Governance
+              <div className="text-xs text-slate-400 font-medium">
+                Procurement Router &amp; Proposal Engine
               </div>
             </div>
           </div>
@@ -222,42 +222,38 @@ export default function QuotationAgentPage() {
           <div className="flex items-center space-x-2">
             <Link
               href="/settings/templates"
-              className="text-[10px] text-amber-300 hover:text-amber-200 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 px-2.5 py-1 rounded-lg flex items-center space-x-1"
+              className="text-xs text-[#FF4D6D] hover:text-white bg-[#FF4D6D]/10 hover:bg-[#FF4D6D]/20 border border-[#FF4D6D]/30 px-3 py-1.5 rounded-full flex items-center space-x-1 font-semibold"
               title="Configure Global Letterhead & DOCX Rules"
             >
-              <FileCog className="w-3 h-3" />
-              <span>Template Rules</span>
+              <FileCog className="w-3.5 h-3.5" />
+              <span>Rules</span>
             </Link>
             <button
               onClick={clearChat}
-              className="p-1.5 text-slate-400 hover:text-slate-200 rounded hover:bg-slate-800 transition-colors cursor-pointer"
+              className="p-2 text-slate-400 hover:text-white rounded-full hover:bg-white/10 transition-colors cursor-pointer"
               title="Clear Journey Log"
             >
-              <RotateCcw className="w-3.5 h-3.5" />
+              <RotateCcw className="w-4 h-4" />
             </button>
           </div>
         </div>
 
-        {/* Quick Action Chips (Including Violation Tests) */}
-        <div className="px-4 py-2 bg-slate-900/60 border-b border-slate-800/80 overflow-x-auto whitespace-nowrap flex items-center space-x-1.5">
-          <span className="text-[10px] text-slate-400 uppercase font-mono font-bold mr-1">
-            Test Prompts:
+        {/* Quick Action Chips */}
+        <div className="px-5 py-2.5 bg-[#121316] border-b border-[#262830] overflow-x-auto whitespace-nowrap flex items-center space-x-2">
+          <span className="text-xs text-slate-400 font-semibold mr-1">
+            Prompt Chips:
           </span>
           {[
             'Add 5 Siemens 24V Relays for Engro with 15% margin',
-            'Give 90 days credit payment terms', // triggers compliance warning!
-            'Change delivery terms to 8 weeks air freight', // triggers compliance warning!
-            'Set quotation validity to 30 days', // triggers compliance warning!
+            'Give 90 days credit payment terms',
+            'Change delivery terms to 8 weeks air freight',
+            'Set quotation validity to 30 days',
             'Apply 18% GST to this quote',
           ].map((suggestion, idx) => (
             <button
               key={idx}
               onClick={() => handleSendMessage(suggestion)}
-              className={`px-2.5 py-1 rounded-full text-[10px] transition-all cursor-pointer font-sans border ${
-                suggestion.includes('credit') || suggestion.includes('8 weeks') || suggestion.includes('30 days')
-                  ? 'bg-amber-500/10 text-amber-300 border-amber-500/40 hover:bg-amber-500/20'
-                  : 'bg-slate-900 text-slate-300 border-slate-700/80 hover:border-slate-500 hover:text-white'
-              }`}
+              className="px-3.5 py-1.5 rounded-full text-xs transition-all cursor-pointer font-medium border bg-[#1A1B20] text-slate-200 border-[#2D303A] hover:border-[#FF4D6D] hover:text-white"
             >
               + {suggestion}
             </button>
@@ -265,7 +261,7 @@ export default function QuotationAgentPage() {
         </div>
 
         {/* Chat Messages Journey Log Feed */}
-        <div className="flex-1 p-4 overflow-y-auto space-y-3.5">
+        <div className="flex-1 p-4 sm:p-6 overflow-y-auto space-y-4">
           {chatMessages.map((msg) => {
             const isUser = msg.sender === 'user';
             const isSystem = msg.sender === 'system';
@@ -273,9 +269,9 @@ export default function QuotationAgentPage() {
 
             if (isSystem) {
               return (
-                <div key={msg.id} className="flex items-center justify-center my-1">
-                  <div className="bg-slate-900 border border-slate-800 text-slate-400 text-[10px] px-3 py-1 rounded-full font-mono flex items-center space-x-1.5 shadow-sm">
-                    <Sparkles className="w-3 h-3 text-amber-400" />
+                <div key={msg.id} className="flex items-center justify-center my-1.5">
+                  <div className="bg-[#1A1B20] border border-[#2D303A] text-slate-300 text-xs px-3.5 py-1 rounded-full font-mono flex items-center space-x-2 shadow-sm">
+                    <Sparkles className="w-3.5 h-3.5 text-[#FF4D6D]" />
                     <span>{msg.text}</span>
                   </div>
                 </div>
@@ -285,43 +281,43 @@ export default function QuotationAgentPage() {
             return (
               <div
                 key={msg.id}
-                className={`flex items-start space-x-2.5 ${isUser ? 'flex-row-reverse space-x-reverse' : ''}`}
+                className={`flex items-start space-x-3 ${isUser ? 'flex-row-reverse space-x-reverse' : ''}`}
               >
                 {/* Avatar */}
                 <div
-                  className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5 ${
+                  className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5 ${
                     isUser
-                      ? 'bg-gradient-to-tr from-blue-600 to-indigo-500 text-white'
+                      ? 'bg-blue-600 text-white'
                       : hasWarning
-                      ? 'bg-amber-500 text-slate-950 font-black'
-                      : 'bg-gradient-to-tr from-amber-500 to-amber-300 text-slate-950 shadow-md shadow-amber-500/20'
+                      ? 'bg-[#FF4D6D] text-white font-black'
+                      : 'bg-gradient-to-tr from-[#FF4D6D] to-amber-400 text-slate-950 font-black shadow-md'
                   }`}
                 >
-                  {isUser ? <UserIcon className="w-3.5 h-3.5" /> : <Bot className="w-3.5 h-3.5" />}
+                  {isUser ? <UserIcon className="w-4 h-4" /> : <Bot className="w-4 h-4 text-white" />}
                 </div>
 
                 {/* Message Bubble */}
                 <div
-                  className={`max-w-[88%] rounded-2xl px-4 py-2.5 text-xs shadow-md leading-relaxed ${
+                  className={`max-w-[85%] rounded-2xl px-4 sm:px-5 py-3 text-sm leading-relaxed shadow-lg ${
                     isUser
                       ? 'bg-blue-600 text-white rounded-tr-none'
                       : hasWarning
-                      ? 'bg-slate-900 border-2 border-amber-500/60 text-slate-100 rounded-tl-none shadow-amber-950/20'
-                      : 'bg-slate-900 border border-slate-800 text-slate-200 rounded-tl-none'
+                      ? 'bg-[#1E1920] border border-[#FF4D6D]/60 text-slate-100 rounded-tl-none'
+                      : 'bg-[#1E2026] border border-[#2B2E37] text-slate-200 rounded-tl-none'
                   }`}
                 >
                   {/* Warning banner inside message if deviation occurred */}
                   {hasWarning && !isUser && (
-                    <div className="mb-2 pb-1.5 border-b border-amber-500/30 flex items-center space-x-1.5 text-amber-400 font-bold text-[11px]">
-                      <AlertTriangle className="w-3.5 h-3.5" />
-                      <span>MASTER TEMPLATE GOVERNANCE ALERT</span>
+                    <div className="mb-2 pb-1.5 border-b border-[#FF4D6D]/30 flex items-center space-x-2 text-[#FF4D6D] font-bold text-xs">
+                      <AlertTriangle className="w-4 h-4" />
+                      <span>MASTER TEMPLATE POLICY ALERT</span>
                     </div>
                   )}
 
                   <div className="whitespace-pre-line">{msg.text}</div>
 
                   <div
-                    className={`text-[9px] mt-1.5 font-mono text-right ${
+                    className={`text-xs mt-1.5 font-mono text-right ${
                       isUser ? 'text-blue-200' : 'text-slate-500'
                     }`}
                   >
@@ -334,14 +330,14 @@ export default function QuotationAgentPage() {
 
           {/* AI Thinking Indicator */}
           {isAgentThinking && (
-            <div className="flex items-start space-x-2.5 animate-in fade-in">
-              <div className="w-7 h-7 rounded-full bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400">
-                <Bot className="w-3.5 h-3.5 animate-bounce" />
+            <div className="flex items-start space-x-3 animate-in fade-in">
+              <div className="w-8 h-8 rounded-full bg-[#FF4D6D]/20 border border-[#FF4D6D]/40 flex items-center justify-center text-[#FF4D6D]">
+                <Bot className="w-4 h-4 animate-bounce" />
               </div>
-              <div className="bg-slate-900 border border-slate-800 rounded-2xl rounded-tl-none px-4 py-2.5 text-xs text-amber-300 flex items-center space-x-2">
-                <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
+              <div className="bg-[#1E2026] border border-[#2B2E37] rounded-2xl rounded-tl-none px-4 py-3 text-sm text-[#FF4D6D] flex items-center space-x-2">
+                <span className="w-2 h-2 rounded-full bg-[#FF4D6D] animate-ping"></span>
                 <span className="font-mono">
-                  Qri AI is checking Master Rules &amp; calculating proposal...
+                  Qri AI is validating Master Rules &amp; calculating proposal...
                 </span>
               </div>
             </div>
@@ -351,16 +347,16 @@ export default function QuotationAgentPage() {
         </div>
 
         {/* Bottom Input Area */}
-        <div className="p-3 bg-slate-900/90 border-t border-slate-800 flex flex-col space-y-1.5 flex-shrink-0">
+        <div className="p-3.5 sm:p-4 bg-[#121316] border-t border-[#262830] flex flex-col space-y-2 flex-shrink-0">
           {attachedFileName && (
-            <div className="flex items-center justify-between bg-amber-500/10 border border-amber-500/30 text-amber-300 px-3 py-1 rounded-lg text-[11px] font-mono">
-              <div className="flex items-center space-x-1.5 truncate">
-                <Paperclip className="w-3 h-3" />
+            <div className="flex items-center justify-between bg-[#FF4D6D]/10 border border-[#FF4D6D]/30 text-[#FF4D6D] px-3.5 py-1.5 rounded-xl text-xs font-mono">
+              <div className="flex items-center space-x-2 truncate">
+                <Paperclip className="w-3.5 h-3.5" />
                 <span className="truncate">Attached: {attachedFileName}</span>
               </div>
               <button
                 onClick={() => setAttachedFileName(null)}
-                className="text-amber-400 hover:text-white ml-2"
+                className="text-white hover:text-rose-300 ml-2"
               >
                 ✕
               </button>
@@ -377,10 +373,10 @@ export default function QuotationAgentPage() {
             />
             <button
               onClick={() => fileInputRef.current?.click()}
-              className="p-2 text-slate-400 hover:text-amber-300 hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
-              title="Attach scanned PDF tender or image quote"
+              className="p-2.5 text-slate-400 hover:text-white hover:bg-white/10 rounded-xl transition-colors cursor-pointer"
+              title="Attach tender PDF or screenshot"
             >
-              <Paperclip className="w-4 h-4" />
+              <Paperclip className="w-5 h-5" />
             </button>
 
             <input
@@ -390,79 +386,60 @@ export default function QuotationAgentPage() {
               onKeyDown={(e) => {
                 if (e.key === 'Enter') handleSendMessage();
               }}
-              placeholder="Tell Qri AI: e.g. 'Add 5 relays for Engro with 15% margin' or '90 days credit'..."
-              className="flex-1 bg-slate-950 border border-slate-700/80 rounded-xl px-3.5 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/30 font-sans"
+              placeholder="Tell Qri AI: e.g. 'Add 5 relays for Engro with 15% margin'..."
+              className="flex-1 bg-[#0E0F12] border border-[#2B2E37] rounded-xl px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-[#FF4D6D] font-sans"
             />
 
             <button
               onClick={() => handleSendMessage()}
               disabled={isAgentThinking || (!inputPrompt.trim() && !attachedFileName)}
-              className="p-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 disabled:opacity-40 text-slate-950 font-bold rounded-xl shadow-md shadow-amber-950/40 cursor-pointer transition-all"
+              className="p-2.5 bg-[#FF4D6D] hover:bg-[#FA3B5E] disabled:opacity-40 text-white font-bold rounded-xl shadow-md shadow-[#FF4D6D]/30 cursor-pointer transition-all"
             >
-              <Send className="w-4 h-4" />
+              <Send className="w-5 h-5" />
             </button>
           </div>
         </div>
       </section>
 
       {/* =========================================================================
-          RIGHT PANE (50% WIDTH ON DESKTOP): LIVE EDITABLE A4 QUOTATION DOCUMENT WITH FIXED PDF LETTERHEAD BACKGROUND
+          RIGHT PANE (50% WIDTH ON DESKTOP): LIVE EDITABLE QUOTATION (SLATE POD #484B53)
       ========================================================================= */}
       <section
-        className={`w-full lg:w-1/2 flex flex-col h-full bg-slate-900/60 overflow-hidden ${
+        className={`w-full lg:w-1/2 flex flex-col h-full bg-[#484B53] rounded-2xl sm:rounded-3xl border border-white/5 text-white shadow-xl overflow-hidden ${
           mobileTab === 'document' ? 'flex' : 'hidden lg:flex'
         }`}
       >
         {/* Document Header & Actions Bar */}
-        <div className="h-14 px-4 bg-slate-900 border-b border-slate-800 flex items-center justify-between flex-shrink-0 z-20">
-          <div className="flex items-center space-x-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
-            <span className="font-bold text-xs text-white">Live Quotation Preview</span>
-            <span className="text-[10px] bg-slate-800 text-slate-300 px-2 py-0.5 rounded font-mono">
+        <div className="h-16 px-5 sm:px-6 bg-[#484B53] border-b border-white/10 flex items-center justify-between flex-shrink-0 z-20">
+          <div className="flex items-center space-x-2.5">
+            <span className="w-2.5 h-2.5 rounded-full bg-[#22C55E]"></span>
+            <span className="font-bold text-sm sm:text-base text-white">Live Quotation Preview</span>
+            <span className="text-xs bg-black/30 text-white px-2.5 py-1 rounded-full font-mono">
               Ref: {templateState.quoteRef}
             </span>
-            {globalLetterheadPdf ? (
-              <span className="text-[10px] bg-blue-500/15 text-blue-300 border border-blue-500/30 px-2 py-0.5 rounded font-mono">
-                Letterhead Active
-              </span>
-            ) : (
-              <span className="text-[10px] bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded font-mono">
-                Default Vector
-              </span>
-            )}
           </div>
 
           <div className="flex items-center space-x-2">
-            {saveSuccessNotice && (
-              <span className="text-[11px] text-emerald-400 font-semibold flex items-center space-x-1 animate-in fade-in">
-                <CheckCircle2 className="w-3.5 h-3.5" />
-                <span>Saved to Cases!</span>
-              </span>
-            )}
-
             <button
               onClick={() => addLineItem()}
-              className="flex items-center space-x-1 px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium border border-slate-700 cursor-pointer"
+              className="px-3.5 py-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white text-xs sm:text-sm font-semibold transition-colors cursor-pointer"
               title="Add blank line item manually"
             >
-              <Plus className="w-3.5 h-3.5" />
-              <span>+ Item</span>
+              + Item
             </button>
 
             <button
               onClick={handleSaveToCases}
-              className="flex items-center space-x-1 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-300 text-xs font-semibold border border-amber-500/30 cursor-pointer transition-colors"
+              className="px-4 py-1.5 rounded-full bg-black hover:bg-slate-900 text-white text-xs sm:text-sm font-bold shadow-md cursor-pointer transition-colors"
             >
-              <Save className="w-3.5 h-3.5" />
-              <span>Save Case</span>
+              Save Case
             </button>
 
             <button
               onClick={handlePrintPdf}
-              className="flex items-center space-x-1 px-3.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-md shadow-blue-900/40 cursor-pointer transition-all"
+              className="px-4 py-1.5 rounded-full bg-[#FF4D6D] hover:bg-[#FA3B5E] text-white text-xs sm:text-sm font-bold shadow-md shadow-[#FF4D6D]/30 cursor-pointer transition-all"
             >
-              <Printer className="w-3.5 h-3.5" />
-              <span>Print / PDF</span>
+              Export PDF
             </button>
           </div>
         </div>

@@ -89,119 +89,98 @@ export default function EngineeringToolsPage() {
   );
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-slate-950 overflow-hidden text-slate-100">
-      {/* Top Header */}
-      <header className="h-14 bg-slate-900 border-b border-slate-800 px-4 sm:px-6 flex items-center justify-between flex-shrink-0">
-        <div className="flex items-center space-x-3">
-          <div className="w-8 h-8 rounded-lg bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400">
-            <Wrench className="w-4 h-4" />
-          </div>
-          <div>
-            <h1 className="text-sm font-bold text-white flex items-center space-x-2">
-              <span>Engineering Procurement Tools</span>
-              <span className="text-[10px] bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded font-mono font-bold">
-                Team Suite
-              </span>
-            </h1>
-            <p className="text-[10px] text-slate-400 hidden sm:block">
-              Rapid commercial calculators, tax gross-up tools, and drop-in equipment matchers
-            </p>
-          </div>
-        </div>
-
-        {/* Tab Switcher */}
-        <div className="flex bg-slate-950 p-1 rounded-lg border border-slate-800">
+    <div className="flex-1 flex flex-col h-full bg-transparent overflow-hidden text-slate-100">
+      {/* Tab Switcher Header */}
+      <div className="flex items-center justify-between pb-3 flex-shrink-0">
+        <div className="flex bg-[#16171B] p-1.5 rounded-full border border-white/5 shadow-md">
           <button
             onClick={() => setActiveTab('wht')}
-            className={`px-3 py-1 rounded-md text-xs font-semibold flex items-center space-x-1.5 transition-all ${
+            className={`px-4 sm:px-6 py-2 rounded-full text-xs sm:text-sm font-bold flex items-center space-x-2 transition-all ${
               activeTab === 'wht'
-                ? 'bg-amber-500 text-slate-950 shadow-sm'
+                ? 'bg-[#FF4D6D] text-white shadow-md shadow-[#FF4D6D]/30'
                 : 'text-slate-400 hover:text-white'
             }`}
           >
-            <Calculator className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">WHT &amp; GST Gross-Up</span>
-            <span className="sm:hidden">WHT</span>
+            <Calculator className="w-4 h-4" />
+            <span>WHT &amp; GST Gross-Up</span>
           </button>
           <button
             onClick={() => setActiveTab('incoterm')}
-            className={`px-3 py-1 rounded-md text-xs font-semibold flex items-center space-x-1.5 transition-all ${
+            className={`px-4 sm:px-6 py-2 rounded-full text-xs sm:text-sm font-bold flex items-center space-x-2 transition-all ${
               activeTab === 'incoterm'
-                ? 'bg-amber-500 text-slate-950 shadow-sm'
+                ? 'bg-[#FF4D6D] text-white shadow-md shadow-[#FF4D6D]/30'
                 : 'text-slate-400 hover:text-white'
             }`}
           >
-            <Truck className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Incoterm Estimator</span>
-            <span className="sm:hidden">Incoterms</span>
+            <Truck className="w-4 h-4" />
+            <span>Incoterm Estimator</span>
           </button>
           <button
             onClick={() => setActiveTab('crossref')}
-            className={`px-3 py-1 rounded-md text-xs font-semibold flex items-center space-x-1.5 transition-all ${
+            className={`px-4 sm:px-6 py-2 rounded-full text-xs sm:text-sm font-bold flex items-center space-x-2 transition-all ${
               activeTab === 'crossref'
-                ? 'bg-amber-500 text-slate-950 shadow-sm'
+                ? 'bg-[#FF4D6D] text-white shadow-md shadow-[#FF4D6D]/30'
                 : 'text-slate-400 hover:text-white'
             }`}
           >
-            <ArrowRightLeft className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Cross-Reference</span>
-            <span className="sm:hidden">SKU Match</span>
+            <ArrowRightLeft className="w-4 h-4" />
+            <span>SKU Cross-Reference</span>
           </button>
         </div>
-      </header>
+      </div>
 
       {/* Main Workspace Area */}
-      <main className="flex-1 p-3 sm:p-6 overflow-y-auto space-y-6">
+      <main className="flex-1 overflow-y-auto space-y-6">
         {/* =========================================================================
             TOOL 1: WHT & GST REVERSE GROSS-UP CALCULATOR
         ========================================================================= */}
         {activeTab === 'wht' && (
-          <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in">
-            <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 sm:p-6 shadow-xl space-y-6">
-              <div className="border-b border-slate-800 pb-3">
-                <h2 className="text-sm font-bold text-white flex items-center space-x-2">
-                  <Calculator className="w-4 h-4 text-amber-400" />
+          <div className="max-w-4xl space-y-6 animate-in fade-in">
+            <div className="bg-[#16171B] border border-white/5 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6">
+              <div className="border-b border-[#262830] pb-4">
+                <h2 className="text-xl sm:text-2xl font-bold text-white flex items-center space-x-2.5">
+                  <Calculator className="w-6 h-6 text-[#FF4D6D]" />
                   <span>Reverse Gross-Up Calculator (Withholding Tax Protection)</span>
                 </h2>
-                <p className="text-xs text-slate-400 mt-1">
-                  Prevents margin erosion caused by corporate Withholding Tax deductions in Pakistan. Automatically scales invoice price so net bank proceeds equal 100% of target margin.
+                <p className="text-sm text-slate-400 mt-1.5 leading-relaxed">
+                  Eliminates margin erosion from corporate tax deductions in Pakistan. Scales the invoice unit price so net cash received in bank equals 100% of profit target.
                 </p>
               </div>
 
               {/* Inputs Grid */}
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-300 mb-1.5">
+                  <label className="block text-xs font-bold text-slate-300 mb-2 uppercase tracking-wider">
                     Base Cost (Supplier PKR):
                   </label>
                   <input
                     type="number"
                     value={baseCost}
                     onChange={(e) => setBaseCost(parseFloat(e.target.value) || 0)}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-amber-400"
+                    className="w-full bg-[#0E0F12] border border-[#2B2E37] rounded-xl px-4 py-3 text-base font-mono text-white focus:outline-none focus:border-[#FF4D6D]"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-300 mb-1.5">
+                  <label className="block text-xs font-bold text-slate-300 mb-2 uppercase tracking-wider">
                     Target Margin (%):
                   </label>
                   <input
                     type="number"
                     value={marginPct}
                     onChange={(e) => setMarginPct(parseFloat(e.target.value) || 0)}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-amber-400"
+                    className="w-full bg-[#0E0F12] border border-[#2B2E37] rounded-xl px-4 py-3 text-base font-mono text-white focus:outline-none focus:border-[#FF4D6D]"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-300 mb-1.5">
+                  <label className="block text-xs font-bold text-slate-300 mb-2 uppercase tracking-wider">
                     Client WHT Deduction (%):
                   </label>
                   <select
                     value={whtPct}
                     onChange={(e) => setWhtPct(parseFloat(e.target.value))}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-amber-400"
+                    className="w-full bg-[#0E0F12] border border-[#2B2E37] rounded-xl px-4 py-3 text-sm font-mono text-white focus:outline-none focus:border-[#FF4D6D]"
                   >
                     <option value="0">0% (Exempt)</option>
                     <option value="5">5% (Special Filer)</option>
@@ -212,13 +191,13 @@ export default function EngineeringToolsPage() {
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-300 mb-1.5">
+                  <label className="block text-xs font-bold text-slate-300 mb-2 uppercase tracking-wider">
                     Sales Tax Mode (GST):
                   </label>
                   <select
                     value={gstMode}
                     onChange={(e) => setGstMode(e.target.value as any)}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-amber-400"
+                    className="w-full bg-[#0E0F12] border border-[#2B2E37] rounded-xl px-4 py-3 text-sm font-mono text-white focus:outline-none focus:border-[#FF4D6D]"
                   >
                     <option value="WITHOUT_GST">Without GST (0%)</option>
                     <option value="GST_18">+18% Sales Tax (GST)</option>
@@ -228,49 +207,49 @@ export default function EngineeringToolsPage() {
               </div>
 
               {/* Calculation Results Card */}
-              <div className="bg-slate-950 border border-amber-500/30 rounded-xl p-4 sm:p-5 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                <div className="p-3 bg-slate-900/80 rounded-lg border border-slate-800">
-                  <div className="text-[10px] text-slate-400 uppercase font-mono">Invoice Unit Price (Excl GST)</div>
-                  <div className="text-base font-bold font-mono text-white mt-1">
+              <div className="bg-[#121316] border border-[#2B2E37] rounded-2xl p-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5">
+                <div className="p-4 bg-[#1A1B20] rounded-xl border border-[#282A33]">
+                  <div className="text-xs text-slate-400 uppercase font-mono font-bold">Invoice Unit Price (Excl GST)</div>
+                  <div className="text-2xl font-black font-mono text-white mt-1.5">
                     Rs. {new Intl.NumberFormat('en-PK').format(Math.round(invoiceUnitPriceExclTax))}
                   </div>
-                  <div className="text-[10px] text-slate-400 mt-1">
+                  <div className="text-xs text-slate-400 mt-1">
                     Target Net: Rs. {new Intl.NumberFormat('en-PK').format(Math.round(targetNetProceeds))}
                   </div>
                 </div>
 
-                <div className="p-3 bg-slate-900/80 rounded-lg border border-slate-800">
-                  <div className="text-[10px] text-slate-400 uppercase font-mono">Expected WHT Deduction ({whtPct}%)</div>
-                  <div className="text-base font-bold font-mono text-rose-400 mt-1">
+                <div className="p-4 bg-[#1A1B20] rounded-xl border border-[#282A33]">
+                  <div className="text-xs text-slate-400 uppercase font-mono font-bold">Expected WHT Deduction ({whtPct}%)</div>
+                  <div className="text-2xl font-black font-mono text-[#FF4D6D] mt-1.5">
                     - Rs. {new Intl.NumberFormat('en-PK').format(Math.round(clientWhtDeduction))}
                   </div>
-                  <div className="text-[10px] text-slate-400 mt-1">Deducted at source by client</div>
+                  <div className="text-xs text-slate-400 mt-1">Deducted at source by client</div>
                 </div>
 
-                <div className="p-3 bg-emerald-500/10 rounded-lg border border-emerald-500/30">
-                  <div className="text-[10px] text-emerald-400 uppercase font-mono font-bold flex items-center space-x-1">
-                    <CheckCircle2 className="w-3 h-3" />
+                <div className="p-4 bg-[#22C55E]/10 rounded-xl border border-[#22C55E]/30">
+                  <div className="text-xs text-[#34D399] uppercase font-mono font-bold flex items-center space-x-1.5">
+                    <CheckCircle2 className="w-4 h-4" />
                     <span>Guaranteed Net Bank Cash</span>
                   </div>
-                  <div className="text-lg font-black font-mono text-emerald-400 mt-1">
+                  <div className="text-2xl font-black font-mono text-[#34D399] mt-1.5">
                     Rs. {new Intl.NumberFormat('en-PK').format(Math.round(netCashReceived))}
                   </div>
-                  <div className="text-[10px] text-emerald-300/80 mt-1">
-                    Exact {marginPct}% margin retained!
+                  <div className="text-xs text-emerald-300 font-medium mt-1">
+                    Exact {marginPct}% profit margin retained!
                   </div>
                 </div>
               </div>
 
               {/* Formula & Rule Note */}
-              <div className="p-3.5 bg-blue-500/10 border border-blue-500/20 rounded-lg text-xs text-blue-300 flex items-start space-x-2.5">
-                <Info className="w-4 h-4 flex-shrink-0 mt-0.5" />
+              <div className="p-4 bg-[#484B53] rounded-2xl text-sm text-slate-200 flex items-start space-x-3 shadow-md">
+                <Info className="w-5 h-5 text-[#FF4D6D] flex-shrink-0 mt-0.5" />
                 <div className="space-y-1">
-                  <div className="font-bold">Golden Procurement Math Rule:</div>
-                  <div className="text-[11px] text-slate-300 leading-relaxed font-mono">
-                    UnitPrice = (Cost × (1 + Margin%)) ÷ (1 - WHT%)
+                  <div className="font-bold text-white text-base">Golden Rule of Commercial Tax Math:</div>
+                  <div className="text-sm font-mono text-white font-bold">
+                    UnitPrice = (BaseCost × (1 + Margin%)) ÷ (1 - WHT%)
                   </div>
-                  <div className="text-[11px] text-slate-400">
-                    Never multiply by (1 + WHT%). Because withholding tax is deducted on the gross invoice, multiplying leaves you short on cash. Dividing ensures 100% of profit is protected.
+                  <div className="text-xs text-slate-300 leading-relaxed">
+                    Always divide by (1 - WHT%). Never multiply by (1 + WHT%). Because clients deduct withholding tax on the gross invoiced value, multiplying leaves you short on cash.
                   </div>
                 </div>
               </div>
@@ -282,51 +261,51 @@ export default function EngineeringToolsPage() {
             TOOL 2: INCOTERM DIFFERENTIAL ESTIMATOR
         ========================================================================= */}
         {activeTab === 'incoterm' && (
-          <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in">
-            <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 sm:p-6 shadow-xl space-y-6">
-              <div className="border-b border-slate-800 pb-3">
-                <h2 className="text-sm font-bold text-white flex items-center space-x-2">
-                  <Truck className="w-4 h-4 text-amber-400" />
+          <div className="max-w-4xl space-y-6 animate-in fade-in">
+            <div className="bg-[#16171B] border border-white/5 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6">
+              <div className="border-b border-[#262830] pb-4">
+                <h2 className="text-xl sm:text-2xl font-bold text-white flex items-center space-x-2.5">
+                  <Truck className="w-6 h-6 text-[#FF4D6D]" />
                   <span>Incoterm Landed Cost Estimator (EXW vs DDP)</span>
                 </h2>
-                <p className="text-xs text-slate-400 mt-1">
-                  Estimate total landed cost when a foreign supplier quotes Ex-Works (EXW Factory) instead of Delivered Duty Paid (DDP).
+                <p className="text-sm text-slate-400 mt-1.5 leading-relaxed">
+                  Calculates total delivered cost when international suppliers quote Ex-Works (EXW Factory) instead of Delivered Duty Paid (DDP).
                 </p>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-300 mb-1.5">
+                  <label className="block text-xs font-bold text-slate-300 mb-2 uppercase tracking-wider">
                     Supplier EXW (USD):
                   </label>
                   <input
                     type="number"
                     value={supplierExwUsd}
                     onChange={(e) => setSupplierExwUsd(parseFloat(e.target.value) || 0)}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-amber-400"
+                    className="w-full bg-[#0E0F12] border border-[#2B2E37] rounded-xl px-4 py-3 text-base font-mono text-white focus:outline-none focus:border-[#FF4D6D]"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-300 mb-1.5">
+                  <label className="block text-xs font-bold text-slate-300 mb-2 uppercase tracking-wider">
                     USD to PKR Rate:
                   </label>
                   <input
                     type="number"
                     value={usdToPkr}
                     onChange={(e) => setUsdToPkr(parseFloat(e.target.value) || 0)}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-amber-400"
+                    className="w-full bg-[#0E0F12] border border-[#2B2E37] rounded-xl px-4 py-3 text-base font-mono text-white focus:outline-none focus:border-[#FF4D6D]"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-300 mb-1.5">
+                  <label className="block text-xs font-bold text-slate-300 mb-2 uppercase tracking-wider">
                     Freight Mode:
                   </label>
                   <select
                     value={freightType}
                     onChange={(e) => setFreightType(e.target.value as any)}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-amber-400"
+                    className="w-full bg-[#0E0F12] border border-[#2B2E37] rounded-xl px-4 py-3 text-sm font-mono text-white focus:outline-none focus:border-[#FF4D6D]"
                   >
                     <option value="AIR">Express Air Freight (15%)</option>
                     <option value="SEA">Standard Ocean Freight (6%)</option>
@@ -334,39 +313,39 @@ export default function EngineeringToolsPage() {
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-300 mb-1.5">
+                  <label className="block text-xs font-bold text-slate-300 mb-2 uppercase tracking-wider">
                     Customs Duty &amp; RD (%):
                   </label>
                   <input
                     type="number"
                     value={customsDutyPct}
                     onChange={(e) => setCustomsDutyPct(parseFloat(e.target.value) || 0)}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-amber-400"
+                    className="w-full bg-[#0E0F12] border border-[#2B2E37] rounded-xl px-4 py-3 text-base font-mono text-white focus:outline-none focus:border-[#FF4D6D]"
                   />
                 </div>
               </div>
 
-              {/* Incoterm Breakdown Table */}
-              <div className="bg-slate-950 border border-slate-800 rounded-xl overflow-hidden p-4 space-y-3 font-mono text-xs">
-                <div className="flex justify-between py-1.5 border-b border-slate-800">
-                  <span className="text-slate-400">1. Base Factory EXW (PKR Equivalent):</span>
-                  <span className="text-white font-bold">Rs. {new Intl.NumberFormat('en-PK').format(Math.round(exwPkr))}</span>
+              {/* Incoterm Breakdown Table inside Slate Pod */}
+              <div className="bg-[#484B53] rounded-2xl p-5 space-y-3 font-mono text-sm shadow-lg text-white">
+                <div className="flex justify-between py-2 border-b border-white/10">
+                  <span className="text-slate-300 font-sans">1. Base Factory EXW (PKR Equivalent):</span>
+                  <span className="text-white font-bold text-base">Rs. {new Intl.NumberFormat('en-PK').format(Math.round(exwPkr))}</span>
                 </div>
-                <div className="flex justify-between py-1.5 border-b border-slate-800">
-                  <span className="text-slate-400">2. International Freight ({freightType}):</span>
-                  <span className="text-white font-bold">+ Rs. {new Intl.NumberFormat('en-PK').format(Math.round(freightCostPkr))}</span>
+                <div className="flex justify-between py-2 border-b border-white/10">
+                  <span className="text-slate-300 font-sans">2. International Freight ({freightType}):</span>
+                  <span className="text-white font-bold text-base">+ Rs. {new Intl.NumberFormat('en-PK').format(Math.round(freightCostPkr))}</span>
                 </div>
-                <div className="flex justify-between py-1.5 border-b border-slate-800">
-                  <span className="text-slate-400">3. Customs Duty, Regulatory Duty &amp; Clearance:</span>
-                  <span className="text-white font-bold">+ Rs. {new Intl.NumberFormat('en-PK').format(Math.round(customsCostPkr))}</span>
+                <div className="flex justify-between py-2 border-b border-white/10">
+                  <span className="text-slate-300 font-sans">3. Customs Duty, Regulatory Duty &amp; Taxes:</span>
+                  <span className="text-white font-bold text-base">+ Rs. {new Intl.NumberFormat('en-PK').format(Math.round(customsCostPkr))}</span>
                 </div>
-                <div className="flex justify-between py-1.5 border-b border-slate-800">
-                  <span className="text-slate-400">4. Port Handling &amp; Inland Trucking:</span>
-                  <span className="text-white font-bold">+ Rs. {new Intl.NumberFormat('en-PK').format(inlandPortClearingPkr)}</span>
+                <div className="flex justify-between py-2 border-b border-white/10">
+                  <span className="text-slate-300 font-sans">4. Port Handling &amp; Inland Logistics:</span>
+                  <span className="text-white font-bold text-base">+ Rs. {new Intl.NumberFormat('en-PK').format(inlandPortClearingPkr)}</span>
                 </div>
-                <div className="flex justify-between py-2 text-sm bg-amber-500/10 px-3 rounded-lg border border-amber-500/30">
-                  <span className="text-amber-300 font-bold">Estimated Landed Cost (DDP Equivalent):</span>
-                  <span className="text-amber-300 font-extrabold">Rs. {new Intl.NumberFormat('en-PK').format(Math.round(estimatedDdpLandedCostPkr))}</span>
+                <div className="flex justify-between py-3 text-base bg-black/40 px-4 rounded-xl border border-white/10 mt-2">
+                  <span className="text-slate-200 font-bold font-sans">Estimated Landed Cost (DDP Equivalent):</span>
+                  <span className="text-[#FF4D6D] font-black text-xl">Rs. {new Intl.NumberFormat('en-PK').format(Math.round(estimatedDdpLandedCostPkr))}</span>
                 </div>
               </div>
             </div>
@@ -377,50 +356,50 @@ export default function EngineeringToolsPage() {
             TOOL 3: INDUSTRIAL EQUIPMENT CROSS-REFERENCE
         ========================================================================= */}
         {activeTab === 'crossref' && (
-          <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in">
-            <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 sm:p-6 shadow-xl space-y-4">
-              <div className="border-b border-slate-800 pb-3 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+          <div className="max-w-4xl space-y-6 animate-in fade-in">
+            <div className="bg-[#16171B] border border-white/5 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-5">
+              <div className="border-b border-[#262830] pb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                 <div>
-                  <h2 className="text-sm font-bold text-white flex items-center space-x-2">
-                    <ArrowRightLeft className="w-4 h-4 text-amber-400" />
+                  <h2 className="text-xl sm:text-2xl font-bold text-white flex items-center space-x-2.5">
+                    <ArrowRightLeft className="w-6 h-6 text-[#FF4D6D]" />
                     <span>Industrial Equipment Drop-in Cross-Reference</span>
                   </h2>
-                  <p className="text-xs text-slate-400 mt-1">
-                    Find equivalent drop-in models across Siemens, Schneider Electric, and ABB when stock is unavailable.
+                  <p className="text-sm text-slate-400 mt-1">
+                    Direct drop-in equivalents across Siemens, Schneider Electric, and ABB when stock is unavailable.
                   </p>
                 </div>
                 <input
                   type="text"
-                  placeholder="Filter by part number or model..."
+                  placeholder="Search SKU or model..."
                   value={crossSearch}
                   onChange={(e) => setCrossSearch(e.target.value)}
-                  className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-400 font-mono w-full sm:w-64"
+                  className="bg-[#0E0F12] border border-[#2B2E37] rounded-full px-4 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-[#FF4D6D] font-mono w-full sm:w-64"
                 />
               </div>
 
               <div className="overflow-x-auto">
-                <table className="w-full border-collapse text-xs text-left">
+                <table className="w-full border-collapse text-sm text-left">
                   <thead>
-                    <tr className="bg-slate-950/80 border-b border-slate-800 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-                      <th className="py-2.5 px-3">Equipment Class</th>
-                      <th className="py-2.5 px-3 text-cyan-400">Siemens Sirius</th>
-                      <th className="py-2.5 px-3 text-emerald-400">Schneider TeSys</th>
-                      <th className="py-2.5 px-3 text-rose-400">ABB Control</th>
+                    <tr className="bg-[#121316] border-b border-[#262830] text-xs font-bold text-slate-400 uppercase tracking-wider">
+                      <th className="py-3.5 px-4">Equipment Class</th>
+                      <th className="py-3.5 px-4 text-cyan-400">Siemens Sirius</th>
+                      <th className="py-3.5 px-4 text-[#34D399]">Schneider TeSys</th>
+                      <th className="py-3.5 px-4 text-[#FF4D6D]">ABB Control</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-800 font-mono">
+                  <tbody className="divide-y divide-[#23252E] font-mono">
                     {filteredCross.map((row, idx) => (
-                      <tr key={idx} className="hover:bg-slate-850/50">
-                        <td className="py-3 px-3 font-sans font-medium text-slate-300">
+                      <tr key={idx} className="hover:bg-white/[0.03] transition-colors">
+                        <td className="py-4 px-4 font-sans font-semibold text-slate-200">
                           {row.category}
                         </td>
-                        <td className="py-3 px-3 font-bold text-cyan-300">
+                        <td className="py-4 px-4 font-bold text-cyan-300 text-sm">
                           {row.siemens}
                         </td>
-                        <td className="py-3 px-3 font-bold text-emerald-300">
+                        <td className="py-4 px-4 font-bold text-[#34D399] text-sm">
                           {row.schneider}
                         </td>
-                        <td className="py-3 px-3 font-bold text-rose-300">
+                        <td className="py-4 px-4 font-bold text-[#FF4D6D] text-sm">
                           {row.abb}
                         </td>
                       </tr>
