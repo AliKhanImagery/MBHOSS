@@ -164,8 +164,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </span>
           </div>
 
-          {/* Right Controls: Quick Search, Notification, User Pill */}
+          {/* Right Controls: Live Pipeline Metric, Quick Search, Notification, User Pill */}
           <div className="flex items-center space-x-3">
+            {/* Live Pipeline Metric Pill in Header */}
+            <div className="hidden lg:flex items-center space-x-2 bg-slate-50 border border-slate-200/80 px-3.5 py-1.5 rounded-full text-xs font-mono shadow-2xs">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              <span className="text-slate-500 font-medium">Pipeline:</span>
+              <span className="font-bold text-slate-900">
+                Rs. {new Intl.NumberFormat('en-PK').format(activeCases.reduce((sum, c) => sum + (c.totalPKR || 0), 0))}
+              </span>
+            </div>
+
             <button
               onClick={() => window.location.reload()}
               className="hidden sm:flex items-center space-x-1 px-3 py-1.5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold border border-slate-200 transition-colors"

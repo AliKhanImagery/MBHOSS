@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, Suspense } from 'react';
 import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   Sparkles,
   Paperclip,
@@ -28,7 +29,11 @@ import {
 import { useApp } from '@/context/AppContext';
 import { QuoteLineItem } from '@/types';
 
-export default function QuotationAgentPage() {
+function QuotationAgentContent() {
+  const searchParams = useSearchParams();
+  const initialPrompt = searchParams.get('prompt');
+  const hasTriggeredPrompt = useRef(false);
+
   const {
     templateState,
     setTemplateState,
@@ -59,6 +64,14 @@ export default function QuotationAgentPage() {
   useEffect(() => {
     chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatMessages, isAgentThinking]);
+
+  // Deep-link initial prompt execution from Main Dashboard
+  useEffect(() => {
+    if (initialPrompt && !hasTriggeredPrompt.current) {
+      hasTriggeredPrompt.current = true;
+      handleSendMessage(initialPrompt);
+    }
+  }, [initialPrompt]);
 
   // Send message to Qri AI agent API
   const handleSendMessage = async (textToSend?: string) => {
@@ -794,5 +807,19 @@ export default function QuotationAgentPage() {
         </div>
       </section>
     </div>
+  );
+}
+
+export default function QuotationAgentPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex-1 flex items-center justify-center bg-transparent text-slate-400 font-mono text-xs">
+          Loading Quotation Agent Workspace...
+        </div>
+      }
+    >
+      <QuotationAgentContent />
+    </Suspense>
   );
 }
