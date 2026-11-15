@@ -1,22 +1,38 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;600;700;800&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
   --background: #F4F5F7;
-  --foreground: #0F172A;
+  --foreground: #090D16;
   --coral-accent: #FF4D6D;
 }
 
 body {
-  color: #0F172A;
+  color: #090D16;
   background-color: #F4F5F7;
-  font-family: Helvetica, "Helvetica Neue", Arial, sans-serif;
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   font-size: 15px;
   line-height: 1.5;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.015em;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* Technical font class */
+.font-mono, code, pre {
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+}
+
+/* High contrast text overrides to prevent washed out grays */
+.text-slate-400 {
+  color: #475569 !important; /* Raised from faint #94A3B8 to high-contrast #475569 */
+}
+
+.text-slate-500 {
+  color: #334155 !important; /* Raised from #64748B to bold #334155 */
 }
 
 /* Minimalist compact scrollbars */
@@ -28,11 +44,11 @@ body {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #CBD5E1;
+  background: #94A3B8;
   border-radius: 6px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #94A3B8;
+  background: #64748B;
 }
 
 /* Print styling for the Right Pane Quotation Document */
