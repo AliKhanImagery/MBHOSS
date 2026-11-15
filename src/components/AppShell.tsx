@@ -22,7 +22,7 @@ import { useApp } from '@/context/AppContext';
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { currentUser, logout, activeCases } = useApp();
+  const { currentUser, logout, activeCases, cloudStatus, refreshFromCloud } = useApp();
 
   // If on login page, do not show navigation shell
   if (pathname === '/login') {
@@ -158,9 +158,23 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 font-sans">
               {currentSection.label}
             </h1>
-            <span className="hidden sm:inline-flex items-center space-x-1.5 text-xs text-slate-400 font-medium pl-2 border-l border-slate-200">
-              <span className="w-2 h-2 rounded-full bg-[#22C55E]"></span>
-              <span>Online • LocalStore</span>
+            <span className="hidden sm:inline-flex items-center space-x-1.5 text-xs font-mono font-medium pl-2 border-l border-slate-200">
+              <span
+                className={`w-2 h-2 rounded-full ${
+                  cloudStatus === 'connected'
+                    ? 'bg-emerald-500 shadow-xs shadow-emerald-500/50'
+                    : cloudStatus === 'syncing'
+                    ? 'bg-amber-500 animate-ping'
+                    : 'bg-slate-400'
+                }`}
+              ></span>
+              <span className={cloudStatus === 'connected' ? 'text-emerald-700 font-bold' : 'text-slate-500 font-semibold'}>
+                {cloudStatus === 'connected'
+                  ? 'Supabase Cloud (ap-south-1)'
+                  : cloudStatus === 'syncing'
+                  ? 'Syncing Cloud...'
+                  : 'Offline • LocalStore'}
+              </span>
             </span>
           </div>
 
@@ -176,12 +190,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </div>
 
             <button
-              onClick={() => window.location.reload()}
-              className="hidden sm:flex items-center space-x-1 px-3 py-1.5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold border border-slate-200 transition-colors"
-              title="Refresh Data"
+              onClick={() => refreshFromCloud()}
+              className="hidden sm:flex items-center space-x-1.5 px-3 py-1.5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold border border-slate-200 transition-colors cursor-pointer active:scale-95"
+              title="Sync with Supabase"
             >
-              <RefreshCw className="w-3.5 h-3.5" />
-              <span>Refresh</span>
+              <RefreshCw className={`w-3.5 h-3.5 ${cloudStatus === 'syncing' ? 'animate-spin text-amber-600' : ''}`} />
+              <span>{cloudStatus === 'syncing' ? 'Syncing...' : 'Sync Cloud'}</span>
             </button>
 
             {/* Notification Bell */}

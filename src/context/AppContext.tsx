@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import {
   User,
   DataBankItem,
@@ -9,6 +9,18 @@ import {
   ChatMessage,
   QuoteLineItem,
 } from '@/types';
+import {
+  fetchDatabankFromCloud,
+  syncDatabankItemToCloud,
+  deleteDatabankItemFromCloud,
+  fetchCasesFromCloud,
+  syncCaseToCloud,
+  deleteCaseFromCloud,
+  fetchTemplateSettingsFromCloud,
+  syncTemplateSettingsToCloud,
+  fetchTeamMembersFromCloud,
+  syncQuotationToCloud,
+} from '@/lib/supabase';
 
 // Default initial user for the bypass login
 export const DEFAULT_USER: User = {
@@ -164,6 +176,10 @@ interface AppContextType {
   chatMessages: ChatMessage[];
   addChatMessage: (msg: Omit<ChatMessage, 'id' | 'timestamp'>) => void;
   clearChat: () => void;
+
+  // Cloud Synchronization (Supabase)
+  cloudStatus: 'connected' | 'syncing' | 'offline';
+  refreshFromCloud: () => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -215,6 +231,52 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return DEFAULT_MASTER_TEMPLATE_RULES;
   });
 
+  // Cloud Synchronization State (Supabase)
+  const [cloudStatus, setCloudStatus] = useState<'connected' | 'syncing' | 'offline'>('connected');
+
+  const refreshFromCloud = async () => {
+    setCloudStatus('syncing');
+    try {
+      const [cloudDb, cloudCases, cloudSettings, cloudUsers] = await Promise.all([
+        fetchDatabankFromCloud(),
+        fetchCasesFromCloud(),
+        fetchTemplateSettingsFromCloud(),
+        fetchTeamMembersFromCloud(),
+      ]);
+
+      if (cloudDb && cloudDb.length > 0) {
+        setDataBank(cloudDb);
+        if (typeof window !== 'undefined') localStorage.setItem('qri_databank', JSON.stringify(cloudDb));
+      }
+      if (cloudCases && cloudCases.length > 0) {
+        setActiveCases(cloudCases);
+        if (typeof window !== 'undefined') localStorage.setItem('qri_active_cases', JSON.stringify(cloudCases));
+      }
+      if (cloudSettings) {
+        if (cloudSettings.masterRules) {
+          setMasterTemplateRulesState(cloudSettings.masterRules);
+          if (typeof window !== 'undefined') localStorage.setItem('master_template_rules', cloudSettings.masterRules);
+        }
+        if (cloudSettings.letterheadPdfBase64) {
+          setGlobalLetterheadPdfState(cloudSettings.letterheadPdfBase64);
+          setLetterheadFileName(cloudSettings.letterheadFileName);
+        }
+      }
+      if (cloudUsers && cloudUsers.length > 0) {
+        setUsers(cloudUsers);
+        if (typeof window !== 'undefined') localStorage.setItem('qri_users_list', JSON.stringify(cloudUsers));
+      }
+      setCloudStatus('connected');
+    } catch (err) {
+      console.warn('[AppContext] Cloud sync error:', err);
+      setCloudStatus('offline');
+    }
+  };
+
+  useEffect(() => {
+    refreshFromCloud();
+  }, []);
+
   const setGlobalLetterheadPdf = (pdfDataUrl: string | null, fileName: string = '') => {
     setGlobalLetterheadPdfState(pdfDataUrl);
     setLetterheadFileName(fileName);
@@ -227,6 +289,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         localStorage.removeItem('qri_letterhead_filename');
       }
     }
+    syncTemplateSettingsToCloud(masterTemplateRules, fileName, pdfDataUrl);
   };
 
   const setMasterTemplateRules = (rules: string) => {
@@ -234,6 +297,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (typeof window !== 'undefined') {
       localStorage.setItem('master_template_rules', rules);
     }
+    syncTemplateSettingsToCloud(rules, letterheadFileName, globalLetterheadPdf);
   };
 
   const resetMasterTemplateRules = () => {
@@ -261,14 +325,25 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       id: `db-${Date.now()}`,
     };
     setDataBank((prev) => [newItem, ...prev]);
+    syncDatabankItemToCloud(newItem);
   };
 
   const updateDataBankItem = (id: string, updates: Partial<DataBankItem>) => {
-    setDataBank((prev) => prev.map((item) => (item.id === id ? { ...item, ...updates } : item)));
+    setDataBank((prev) =>
+      prev.map((item) => {
+        if (item.id === id) {
+          const updated = { ...item, ...updates };
+          syncDatabankItemToCloud(updated);
+          return updated;
+        }
+        return item;
+      })
+    );
   };
 
   const deleteDataBankItem = (id: string) => {
     setDataBank((prev) => prev.filter((item) => item.id !== id));
+    deleteDatabankItemFromCloud(id);
   };
 
   const resetDataBank = () => {
@@ -351,6 +426,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (typeof window !== 'undefined') {
       localStorage.setItem('qri_current_template', JSON.stringify(templateState));
     }
+    const timer = setTimeout(() => {
+      syncQuotationToCloud(templateState);
+    }, 1200);
+    return () => clearTimeout(timer);
   }, [templateState]);
 
   // Recalculates Subtotal, Taxes, and Grand Total accurately
@@ -561,6 +640,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     } else {
       setActiveCases((prev) => [updatedCase, ...prev]);
     }
+
+    syncCaseToCloud(updatedCase);
+    syncQuotationToCloud(templateState);
   };
 
   const loadCase = (caseId: string) => {
@@ -576,6 +658,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const deleteCase = (caseId: string) => {
     setActiveCases((prev) => prev.filter((c) => c.id !== caseId));
+    deleteCaseFromCloud(caseId);
   };
 
   // 6. Chat History State
@@ -660,6 +743,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         chatMessages,
         addChatMessage,
         clearChat,
+        cloudStatus,
+        refreshFromCloud,
       }}
     >
       {children}

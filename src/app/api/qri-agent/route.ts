@@ -75,7 +75,10 @@ ${JSON.stringify(current_template, null, 2)}
         const parsed = JSON.parse(cleanJson);
 
         if (parsed.chat_response && parsed.template_state) {
-          return NextResponse.json(parsed);
+          return NextResponse.json({
+            ...parsed,
+            system_log: 'Executed via Google Gemini 1.5 Flash (Live LLM Engine)',
+          });
         }
       } catch (geminiError: any) {
         console.warn('[Qri AI] Gemini execution failed, falling back to local heuristic:', geminiError.message);
@@ -89,7 +92,12 @@ ${JSON.stringify(current_template, null, 2)}
       databank_items,
       master_template_rules
     );
-    return NextResponse.json(localResult);
+    return NextResponse.json({
+      ...localResult,
+      system_log: apiKey
+        ? 'Fallback: Heuristic Router (Gemini API error)'
+        : 'Executed via Deterministic Procurement Engine (Add GEMINI_API_KEY in .env.local for Live AI)',
+    });
   } catch (err: any) {
     console.error('Qri Agent route error:', err);
     return NextResponse.json({ error: err.message || 'Internal Agent Error' }, { status: 500 });
@@ -250,22 +258,30 @@ function executeLocalHeuristicAgent(
 
   // If item addition requested or matched
   if (matchedDbItem || lowerPrompt.includes('add') || lowerPrompt.includes('insert')) {
-    const targetDb = matchedDbItem || databank[0];
-    const unitCost = targetDb.pricePKR;
+    const fallbackItem: DataBankItem = {
+      id: 'db-fallback',
+      company: 'Brandt Industrial Lahore',
+      machineName: 'Siemens SIRIUS Contactor Relay 24V DC (3RH2122-1BB40)',
+      pricePKR: 14500,
+      lastCheckedDate: '2026-11-12',
+      category: 'Switchgear & Relays',
+    };
+    const targetDb = matchedDbItem || databank[0] || fallbackItem;
+    const unitCost = targetDb.pricePKR || 14500;
     const unitPrice = Math.round(unitCost * (1 + marginPct / 100));
     const total = qty * unitPrice;
 
-    const brand = targetDb.machineName.includes('Siemens')
+    const brand = targetDb.machineName?.includes('Siemens')
       ? 'Siemens'
-      : targetDb.machineName.includes('Schneider')
+      : targetDb.machineName?.includes('Schneider')
       ? 'Schneider Electric'
       : 'Industrial';
 
-    const partNum = targetDb.machineName.match(/\(([^)]+)\)/)?.[1] || 'SKU-001';
+    const partNum = targetDb.machineName?.match(/\(([^)]+)\)/)?.[1] || 'SKU-001';
 
     const newLine = {
       id: `item-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
-      description: targetDb.machineName,
+      description: targetDb.machineName || 'Industrial Component',
       brand,
       partNumber: partNum,
       qty,
