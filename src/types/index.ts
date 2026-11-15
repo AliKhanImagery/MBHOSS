@@ -92,3 +92,39 @@ export interface TemplateSettingsState {
   masterTemplateRules: string;
   lastUpdated: string;
 }
+
+// ─── Smart RFQ Dispatcher & Sourcing Automation ─────────────────────────────
+
+export interface SourcingSupplier {
+  id: string;
+  companyName: string;
+  contactPerson?: string;
+  email: string;
+  phone?: string;
+  categories: string[];
+  city?: string;
+}
+
+export interface SourcingRfqItem {
+  id: string;
+  description: string;
+  brand?: string;
+  partNumber?: string;
+  qty: number;
+  uom: string;
+  specs?: string;
+}
+
+export interface SourcingDispatchPackage {
+  id: string;
+  supplierId: string;
+  supplierName: string;
+  supplierEmail: string;
+  supplierContact?: string;
+  matchedItems: SourcingRfqItem[];
+  subject: string;
+  body: string;
+  fitReason: string;
+  status: 'draft' | 'dispatched' | 'skipped';
+  dispatchedAt?: string;
+}

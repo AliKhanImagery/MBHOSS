@@ -16,6 +16,7 @@ import {
   Search,
   Bell,
   RefreshCw,
+  Send,
 } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 
@@ -51,6 +52,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       icon: FolderKanban,
       active: pathname === '/cases',
       count: activeCases.length,
+    },
+    {
+      href: '/sourcing',
+      label: 'Smart RFQ Dispatcher',
+      shortLabel: 'Dispatch',
+      icon: Send,
+      active: pathname.startsWith('/sourcing'),
     },
     {
       href: '/tools',
