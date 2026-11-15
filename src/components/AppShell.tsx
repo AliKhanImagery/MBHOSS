@@ -212,7 +212,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         {/* Workspace Content (Full Screen Space, Edge-to-Edge) */}
         <div
           className={`flex-1 flex flex-col overflow-hidden ${
-            pathname.startsWith('/agent') ? 'p-2 sm:p-3' : 'p-3 sm:p-6'
+            pathname.startsWith('/agent') || pathname.startsWith('/tools')
+              ? 'p-2 sm:p-3 sm:pt-2'
+              : 'p-3 sm:p-6'
           }`}
         >
           {children}

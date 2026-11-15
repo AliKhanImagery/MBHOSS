@@ -1070,7 +1070,7 @@ function ToolsContent() {
       {activeTool ? (
         <div className="flex-1 flex flex-col h-full overflow-hidden animate-in fade-in">
           {/* Back Bar */}
-          <div className="bg-white border border-slate-200/80 rounded-2xl px-5 py-3 mb-4 flex items-center justify-between flex-shrink-0 shadow-xs">
+          <div className="bg-white border border-slate-300 rounded-2xl px-4 py-2 mb-2 flex items-center justify-between flex-shrink-0 shadow-2xs">
             <div className="flex items-center space-x-3">
               <button
                 onClick={backToMenu}
@@ -1079,17 +1079,17 @@ function ToolsContent() {
                 <ArrowLeft className="w-3.5 h-3.5" />
                 <span>All Tools</span>
               </button>
-              <div className="h-5 w-px bg-slate-200 hidden sm:block" />
+              <div className="h-4 w-px bg-slate-200 hidden sm:block" />
               <span className="font-bold text-sm sm:text-base text-slate-900">{activeTool_?.title}</span>
               <span className={`text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-full border hidden sm:inline-block ${activeTool_?.badgeColor}`}>
                 {activeTool_?.badge}
               </span>
             </div>
-            <span className="text-xs text-slate-400 font-mono hidden md:inline">{activeTool_?.formula}</span>
+            <span className="text-xs text-slate-600 font-mono font-bold hidden md:inline">{activeTool_?.formula}</span>
           </div>
 
           {/* Tool Canvas */}
-          <div className="flex-1 overflow-y-auto space-y-6 pr-1">
+          <div className="flex-1 overflow-y-auto space-y-2.5 pr-1">
 
             {/* ================================================================
                 TOOL 1 — TANK VOLUME & CAPACITY SIZER (DUAL-PANE CAD BLUEPRINT)
@@ -1097,17 +1097,72 @@ function ToolsContent() {
                            DIN 28050, ASME BPE-2022
             ================================================================ */}
             {activeTool === 'tank' && (
-              <div className="w-full space-y-5">
-                <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 items-start">
-                  {/* Left Column (7 cols): Presets, Sliders, and Metric Cards */}
-                  <div className="xl:col-span-7 space-y-5">
-                    {/* Presets */}
-                    <div className="flex items-center flex-wrap gap-2">
-                      <span className="text-xs text-slate-800 font-black mr-1 uppercase tracking-wider">Presets:</span>
+              <div className="w-full space-y-2.5">
+                {/* TOP RESULTS KPI HEADER SECTION (Always on Top of the Tool Window) */}
+                <div className="bg-white border border-slate-300 rounded-2xl p-3 shadow-xs grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
+                  <div className="p-2 sm:p-2.5 bg-slate-50 rounded-xl border border-slate-200">
+                    <div className="text-[10px] font-mono font-black uppercase text-slate-600">Total Volume</div>
+                    <div className="text-lg sm:text-xl font-black font-mono text-slate-950 mt-0.5">
+                      {Math.round(totalTankLiters).toLocaleString()} L
+                    </div>
+                    <div className="text-[10px] font-bold text-slate-600">{totalTankVolM3.toFixed(2)} m³</div>
+                  </div>
+
+                  <div className="p-2 sm:p-2.5 bg-emerald-50 rounded-xl border border-emerald-200">
+                    <div className="text-[10px] font-mono font-black uppercase text-emerald-800">Working Cap (90%)</div>
+                    <div className="text-lg sm:text-xl font-black font-mono text-emerald-800 mt-0.5">
+                      {Math.round(workingCapacityLiters).toLocaleString()} L
+                    </div>
+                    <div className="text-[10px] font-bold text-emerald-700">10% Ullage Safe</div>
+                  </div>
+
+                  <div className="p-2 sm:p-2.5 bg-blue-50 rounded-xl border border-blue-200">
+                    <div className="text-[10px] font-mono font-black uppercase text-blue-800">Current Liquid</div>
+                    <div className="text-lg sm:text-xl font-black font-mono text-blue-800 mt-0.5">
+                      {Math.round(currentFillLiters).toLocaleString()} L
+                    </div>
+                    <div className="text-[10px] font-bold text-blue-700">{tankFillPct}% Fill ({(liquidWeightKg / 1000).toFixed(1)} MT)</div>
+                  </div>
+
+                  <div className="p-2 sm:p-2.5 bg-slate-50 rounded-xl border border-slate-200">
+                    <div className="text-[10px] font-mono font-black uppercase text-slate-600">SS Shell Area</div>
+                    <div className="text-lg sm:text-xl font-black font-mono text-slate-950 mt-0.5">
+                      {shellSurfaceAreaM2.toFixed(1)} m²
+                    </div>
+                    <div className="text-[10px] font-bold text-slate-600">Cyl + Cone + Top</div>
+                  </div>
+
+                  <div className="p-2 sm:p-2.5 bg-purple-50 rounded-xl border border-purple-200">
+                    <div className="text-[10px] font-mono font-black uppercase text-purple-800">Total Height</div>
+                    <div className="text-lg sm:text-xl font-black font-mono text-purple-900 mt-0.5">
+                      {(tankCylHeight + tankConeHeight + tankLegHeight).toFixed(2)} m
+                    </div>
+                    <div className="text-[10px] font-bold text-purple-700">Floor to Top Vent</div>
+                  </div>
+
+                  <div className={`p-2 sm:p-2.5 rounded-xl border ${tankLegHeight >= 0.4 ? 'bg-emerald-50 border-emerald-200' : 'bg-amber-50 border-amber-200'}`}>
+                    <div className={`text-[10px] font-mono font-black uppercase ${tankLegHeight >= 0.4 ? 'text-emerald-800' : 'text-amber-800'}`}>Floor Clearance</div>
+                    <div className={`text-lg sm:text-xl font-black font-mono mt-0.5 ${tankLegHeight >= 0.4 ? 'text-emerald-800' : 'text-amber-800'}`}>
+                      {tankLegHeight.toFixed(2)} m
+                    </div>
+                    <div className={`text-[10px] font-bold ${tankLegHeight >= 0.4 ? 'text-emerald-700' : 'text-amber-700'}`}>
+                      {tankLegHeight >= 0.4 ? '✓ EHEDG washdown OK' : '⚠ Low bottom clearance'}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 xl:grid-cols-12 gap-4 items-start">
+                  {/* Left Column (7 cols): Presets and Sliders */}
+                  <div className="xl:col-span-7 space-y-3">
+                    {/* Presets with 20,000L and 30,000L included */}
+                    <div className="flex items-center flex-wrap gap-1.5 bg-white border border-slate-300 rounded-2xl px-4 py-2.5 shadow-2xs">
+                      <span className="text-xs text-slate-900 font-black mr-1 uppercase tracking-wider">Presets:</span>
                       {[
                         { name: '5,000L', d: 1.6, hCyl: 2.6, hCone: 0.5, hLeg: 0.6 },
                         { name: '10,000L', d: 2.2, hCyl: 2.8, hCone: 0.6, hLeg: 0.8 },
+                        { name: '20,000L', d: 2.6, hCyl: 3.5, hCone: 0.7, hLeg: 0.8 },
                         { name: '25,000L', d: 2.8, hCyl: 4.2, hCone: 0.8, hLeg: 0.9 },
+                        { name: '30,000L', d: 3.0, hCyl: 4.0, hCone: 0.8, hLeg: 0.9 },
                         { name: '50,000L', d: 3.6, hCyl: 5.0, hCone: 1.0, hLeg: 1.0 },
                         { name: '100,000L', d: 4.4, hCyl: 7.0, hCone: 1.2, hLeg: 1.2 },
                       ].map((p) => (
@@ -1118,18 +1173,18 @@ function ToolsContent() {
                             setTankConeHeight(p.hCone);
                             setTankLegHeight(p.hLeg);
                           }}
-                          className="px-3.5 py-1.5 rounded-full text-xs font-black bg-white hover:bg-slate-100 text-slate-900 border border-slate-300 transition-colors shadow-2xs cursor-pointer"
+                          className="px-3 py-1 rounded-full text-xs font-black bg-slate-50 hover:bg-slate-200 text-slate-900 border border-slate-300 transition-colors shadow-2xs cursor-pointer active:scale-95"
                         >{p.name}</button>
                       ))}
                     </div>
 
                     {/* Inputs Card */}
-                    <div className="bg-white border border-slate-300/90 rounded-2xl p-6 shadow-xs space-y-6">
-                      <h2 className="text-lg font-black text-slate-950 flex items-center space-x-2 pb-3 border-b border-slate-200">
-                        <Layers className="w-5 h-5 text-blue-600" />
+                    <div className="bg-white border border-slate-300/90 rounded-2xl p-5 shadow-xs space-y-4">
+                      <h2 className="text-base font-black text-slate-950 flex items-center space-x-2 pb-2.5 border-b border-slate-200">
+                        <Layers className="w-4 h-4 text-blue-600" />
                         <span>Tank Dimensions &amp; Process Fluid</span>
                       </h2>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <SliderRow label="Internal Diameter" value={tankDiameter} min={0.5} max={5.0} step={0.05} unit="m"
                           note="Typical beverage tanks: 1.0m (5kL) to 4.5m (100kL)"
                           onChange={setTankDiameter} formatValue={(v) => v.toFixed(2)} />
@@ -1142,12 +1197,14 @@ function ToolsContent() {
                         <SliderRow label="Support Leg Height" value={tankLegHeight} min={0.2} max={2.0} step={0.05} unit="m"
                           note="Sanitary clearance for bottom valve & floor washdown (min 0.3m per EHEDG)"
                           onChange={setTankLegHeight} formatValue={(v) => v.toFixed(2)} />
-                        <SliderRow label="Current Fill Level" value={tankFillPct} min={0} max={100} step={1} unit="%"
-                          note="Working capacity limited to 90% (10% ullage / headspace standard)"
-                          onChange={setTankFillPct} />
+                        <div className="sm:col-span-2">
+                          <SliderRow label="Current Fill Level" value={tankFillPct} min={0} max={100} step={1} unit="%"
+                            note="Working capacity limited to 90% (10% ullage / headspace standard)"
+                            onChange={setTankFillPct} />
+                        </div>
                       </div>
                       <div>
-                        <span className="text-xs font-black text-slate-900 uppercase tracking-wider block mb-2">Process Fluid</span>
+                        <span className="text-xs font-black text-slate-900 uppercase tracking-wider block mb-1.5">Process Fluid</span>
                         <PillGroup
                           options={[
                             { label: 'Water / Beverage', value: 'WATER', sub: '1,000 kg/m³' },
@@ -1161,23 +1218,9 @@ function ToolsContent() {
                       </div>
                     </div>
 
-                    {/* Results StatCards */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                      <StatCard label="Total Geometric Volume" value={`${Math.round(totalTankLiters).toLocaleString()} L`} sub={`${totalTankVolM3.toFixed(2)} m³`} />
-                      <StatCard label="Working Capacity (90%)" value={`${Math.round(workingCapacityLiters).toLocaleString()} L`} sub="10% ullage headspace" accent="green" />
-                      <StatCard label="Liquid Weight @ Fill" value={`${Math.round(liquidWeightKg).toLocaleString()} kg`} sub={`${(liquidWeightKg / 1000).toFixed(1)} metric tons`} />
-                      <StatCard label="SS Shell Surface Area" value={`${shellSurfaceAreaM2.toFixed(1)} m²`} sub="Cylinder + Cone + Top" />
-                    </div>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                      <StatCard label="Current Fill Volume" value={`${Math.round(currentFillLiters).toLocaleString()} L`} sub={`${tankFillPct}% of total`} accent="blue" />
-                      <StatCard label="Total System Height" value={`${(tankCylHeight + tankConeHeight + tankLegHeight).toFixed(2)} m`} sub="Floor to top dish" accent="purple" />
-                      <StatCard label="Floor Clearance" value={`${tankLegHeight.toFixed(2)} m`} sub={tankLegHeight >= 0.4 ? '✓ EHEDG washdown OK' : '⚠ Limited bottom clearance'} accent={tankLegHeight >= 0.4 ? 'green' : 'amber'} />
-                      <StatCard label="CIP Min Flow Req." value={`${Math.round(cipFlowRequiredLmin)} L/min`} sub="25 L/min per m² (EHEDG)" accent="amber" />
-                    </div>
-
-                    <NoteCard icon={<Info className="w-5 h-5 text-blue-600" />} title="Geometry &amp; Design Standard">
+                    <NoteCard icon={<Info className="w-5 h-5 text-blue-600" />} title="ASME BPE &amp; EHEDG Formulation">
                       <p className="text-xs font-mono text-blue-950 font-black">V_total = (π × R² × H_cyl) + (⅓ × π × R² × H_cone)</p>
-                      <p className="text-xs text-blue-900 leading-relaxed font-medium">Conical bottoms (30–45° half-angle) ensure 100% hygienic CIP drainage. 10% ullage prevents liquid surge during agitation. Leg clearance ≥ 0.4m ensures unhindered floor sanitization per EHEDG Doc. 9 / 3-A Standard 20-28.</p>
+                      <p className="text-xs text-blue-900 leading-relaxed font-medium">Conical bottoms ensure 100% complete CIP drainage without puddling. Leg clearance ≥ 0.4m ensures unhindered floor sanitization per EHEDG Doc. 9 / 3-A Standard 20-28.</p>
                     </NoteCard>
                   </div>
 
