@@ -22,6 +22,7 @@ import {
   ArrowRight,
 } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
+import { authHeaders } from '@/lib/supabase';
 import { SourcingSupplier, SourcingRfqItem, SourcingDispatchPackage } from '@/types';
 
 // Default initial candidate suppliers directory
@@ -230,7 +231,7 @@ export default function SmartRfqDispatcherPage() {
     try {
       const res = await fetch('/api/sourcing/dispatch', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
         body: JSON.stringify({
           suppliers,
           rfq_items: rfqItems,

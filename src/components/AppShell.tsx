@@ -23,11 +23,16 @@ import { useApp } from '@/context/AppContext';
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { currentUser, logout, activeCases, cloudStatus, refreshFromCloud } = useApp();
+  const { currentUser, logout, activeCases, cloudStatus, refreshFromCloud, authLoading } = useApp();
 
   // If on login page, do not show navigation shell
   if (pathname === '/login') {
     return <>{children}</>;
+  }
+
+  // Real sign-in is checking the saved session: do not flash pages or bounce to login yet
+  if (authLoading) {
+    return <div className="h-[100dvh] w-screen flex items-center justify-center bg-[#F4F5F7] text-sm text-slate-500">Loading…</div>;
   }
 
   const navItems = [

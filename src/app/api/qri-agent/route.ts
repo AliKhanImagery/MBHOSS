@@ -6,6 +6,7 @@
 // ==============================================================================
 
 import { NextRequest, NextResponse } from 'next/server';
+import { requireSession } from '@/lib/auth-server';
 import type { DataBankItem, QuotationTemplate, TemplateRules } from '@/types';
 import { runAgent } from '@/lib/agent-loop';
 import { LlmError, providerFromEnv } from '@/lib/llm';
@@ -32,6 +33,9 @@ const isObj = (v: unknown): v is Record<string, unknown> => typeof v === 'object
 const numOrNull = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) ? v : null);
 
 export async function POST(req: NextRequest) {
+  const session = await requireSession(req);
+  if (!session.ok) return NextResponse.json({ ok: false, error: session.error }, { status: session.status });
+
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
   if (throttled(ip)) return fail('Too many requests. Please wait a minute and try again.', 429);
 

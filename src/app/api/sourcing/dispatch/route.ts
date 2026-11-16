@@ -4,10 +4,14 @@
 // ==============================================================================
 
 import { NextRequest, NextResponse } from 'next/server';
+import { requireSession } from '@/lib/auth-server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { SourcingSupplier, SourcingRfqItem, SourcingDispatchPackage } from '@/types';
 
 export async function POST(req: NextRequest) {
+  const session = await requireSession(req);
+  if (!session.ok) return NextResponse.json({ ok: false, error: session.error }, { status: session.status });
+
   try {
     const body = await req.json();
     const {

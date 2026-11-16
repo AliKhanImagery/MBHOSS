@@ -297,3 +297,31 @@ export async function fetchTeamMembersFromCloud(): Promise<User[] | null> {
     return null;
   }
 }
+
+
+// ─── Auth helpers ────────────────────────────────────────────────────────────
+
+/** Header for calls to our own API routes. Empty in developer mode (sign-in off). */
+export async function authHeaders(): Promise<Record<string, string>> {
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+/** The team_members row for a signed-in email, or null if the account is not a listed team member. */
+export async function fetchTeamMemberByEmail(email: string): Promise<User | null> {
+  try {
+    const { data, error } = await supabase.from('team_members').select('*').ilike('email', email).maybeSingle();
+    if (error || !data) return null;
+    return {
+      id: data.id,
+      name: data.name,
+      email: data.email,
+      role: data.role,
+      avatar: data.avatar || undefined,
+      features: data.features || { directPdfExport: true, dataBankWrite: false, marginOverride: false, whatsappBot: false },
+    };
+  } catch {
+    return null;
+  }
+}
