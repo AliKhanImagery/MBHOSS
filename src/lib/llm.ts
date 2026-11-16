@@ -5,9 +5,15 @@
 // a retired model never takes the app down again.
 // ==============================================================================
 
+export interface LlmImage {
+  mime: string; // image/jpeg | image/png | image/webp
+  data: string; // base64, no data: prefix
+}
+
 export interface LlmMessage {
   role: 'user' | 'assistant';
   content: string;
+  images?: LlmImage[];
 }
 
 export type LlmProvider = (system: string, messages: LlmMessage[]) => Promise<string>;
@@ -63,7 +69,21 @@ export function anthropicProvider(apiKey: string, model: string): LlmProvider {
     const data = (await postJson(
       `${process.env.ANTHROPIC_BASE_URL || 'https://api.anthropic.com'}/v1/messages`,
       { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
-      { model, max_tokens: 2048, temperature: 0, system, messages }
+      {
+        model,
+        max_tokens: 2048,
+        temperature: 0,
+        system,
+        messages: messages.map((m) => ({
+          role: m.role,
+          content: m.images?.length
+            ? [
+                ...m.images.map((i) => ({ type: 'image', source: { type: 'base64', media_type: i.mime, data: i.data } })),
+                { type: 'text', text: m.content },
+              ]
+            : m.content,
+        })),
+      }
     )) as { content?: { type: string; text?: string }[] };
     const text = (data.content ?? []).filter((c) => c.type === 'text').map((c) => c.text ?? '').join('');
     if (!text) throw new LlmError('The AI returned an empty answer.', 'failed');
@@ -91,7 +111,10 @@ export function geminiProvider(apiKey: string, models: string[]): LlmProvider {
               systemInstruction: { parts: [{ text: system }] },
               contents: messages.map((m) => ({
                 role: m.role === 'assistant' ? 'model' : 'user',
-                parts: [{ text: m.content }],
+                parts: [
+                  ...(m.images ?? []).map((i) => ({ inlineData: { mimeType: i.mime, data: i.data } })),
+                  { text: m.content },
+                ],
               })),
               generationConfig: {
                 temperature: 0,

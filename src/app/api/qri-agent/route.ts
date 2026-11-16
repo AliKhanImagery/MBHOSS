@@ -9,7 +9,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireSession } from '@/lib/auth-server';
 import type { DataBankItem, QuotationTemplate, TemplateRules } from '@/types';
 import { runAgent } from '@/lib/agent-loop';
-import { LlmError, providerFromEnv } from '@/lib/llm';
+import { LlmError, providerFromEnv, type LlmImage } from '@/lib/llm';
+import { isAllowedImageType, MAX_IMAGE_BASE64_CHARS } from '@/lib/image-fit';
 
 export const maxDuration = 60;
 
@@ -47,7 +48,18 @@ export async function POST(req: NextRequest) {
   }
   if (!isObj(body)) return fail('That request could not be read.', 400);
 
-  const instruction = typeof body.instruction === 'string' ? body.instruction.trim() : '';
+  let image: LlmImage | undefined;
+  if (body.image !== undefined && body.image !== null) {
+    const im = body.image;
+    if (!isObj(im) || !isAllowedImageType(im.mime) || typeof im.data !== 'string' || !/^[A-Za-z0-9+/=]+$/.test(im.data) || im.data.length === 0) {
+      return fail('That picture could not be used. Please attach a JPG, PNG or WebP.', 400);
+    }
+    if (im.data.length > MAX_IMAGE_BASE64_CHARS) return fail('That picture is too large. Please attach a smaller one.', 413);
+    image = { mime: im.mime, data: im.data };
+  }
+
+  let instruction = typeof body.instruction === 'string' ? body.instruction.trim() : '';
+  if (!instruction && image) instruction = 'Please read the attached picture and tell me what should be added or changed on the quote.';
   if (!instruction) return fail('Please type what you want to change.', 400);
   if (instruction.length > MAX_INSTRUCTION) return fail('That message is too long. Please shorten it.', 400);
 
@@ -75,7 +87,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const provider = providerFromEnv();
-    const out = await runAgent({ provider, quote, instruction, history, dataBank: bank, rules });
+    const out = await runAgent({ provider, quote, instruction, history, dataBank: bank, rules, image });
     return NextResponse.json({
       ok: true,
       quote: out.quote,

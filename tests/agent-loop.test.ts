@@ -94,3 +94,23 @@ test('no prices, costs or totals are sent to the AI provider', async () => {
   assert.ok(!sent.includes('22,000') && !sent.includes('22000'), 'total leaked');
   assert.match(sent, /Rs\. \[amount\]/);
 });
+
+test('an attached picture reaches the provider on the user message', async () => {
+  const seen: { images?: unknown }[] = [];
+  const p: LlmProvider = async (_sys, messages) => {
+    seen.push(...messages);
+    return '{"ops":[],"question":null}';
+  };
+  await runAgent({ ...base(p, 'read the picture'), image: { mime: 'image/jpeg', data: 'QUJD' } });
+  assert.ok(seen.some((m) => Array.isArray(m.images) && (m.images as unknown[]).length === 1));
+});
+
+test('without a picture no images are sent', async () => {
+  const seen: { images?: unknown }[] = [];
+  const p: LlmProvider = async (_sys, messages) => {
+    seen.push(...messages);
+    return '{"ops":[],"question":null}';
+  };
+  await runAgent(base(p, 'hello'));
+  assert.ok(seen.every((m) => m.images === undefined));
+});

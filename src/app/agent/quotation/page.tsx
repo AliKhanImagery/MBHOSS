@@ -3,11 +3,12 @@
 import React, { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { AlertTriangle, CheckCircle2, ChevronsRight, Download, FilePlus2, MessageSquare, Plus, Save, Send, Trash2, Undo2, XCircle } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, ChevronsRight, Download, FilePlus2, MessageSquare, Paperclip, Plus, Save, Send, Trash2, Undo2, X, XCircle } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { checkQuote, formatPKR } from '@/lib/quote-engine';
 import { authHeaders } from '@/lib/supabase';
 import { TopBarActions } from '@/components/TopBarActions';
+import { prepareImage, type PreparedImage } from '@/lib/image-prepare';
 import type { QuotationTemplate } from '@/types';
 
 interface AssistantResponse {
@@ -45,6 +46,9 @@ function QuotationContent() {
   const [toast, setToast] = useState<string | null>(null);
   const [tab, setTab] = useState<'quote' | 'assistant'>('quote');
   const [chatOpen, setChatOpen] = useState(true);
+  const [attached, setAttached] = useState<PreparedImage | null>(null);
+  const [attachNote, setAttachNote] = useState<string | null>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
   const feedEnd = useRef<HTMLDivElement>(null);
 
   // remember whether the assistant panel was left open or collapsed
@@ -72,22 +76,39 @@ function QuotationContent() {
     setTimeout(() => setToast(null), 3500);
   };
 
+  const attach = async (file: File | undefined | null) => {
+    if (!file) return;
+    setAttachNote(null);
+    try {
+      const img = await prepareImage(file);
+      setAttached(img);
+      if (img.resized) setAttachNote('Picture was larger than 1 MP, so it was shrunk before sending.');
+    } catch (e) {
+      setAttached(null);
+      setAttachNote(e instanceof Error ? e.message : 'That picture could not be used.');
+    }
+  };
+
   const send = async (raw?: string) => {
-    const text = (raw ?? input).trim();
-    if (!text || thinking || !officeTemplate) return;
+    const typed = (raw ?? input).trim();
+    const image = raw === undefined ? attached : null;
+    if ((!typed && !image) || thinking || !officeTemplate) return;
+    const text = typed || 'Please read the attached picture.';
     const history = chatMessages
       .filter((m) => m.sender === 'user' || m.sender === 'agent')
       .slice(-8)
       .map((m) => ({ role: (m.sender === 'user' ? 'user' : 'assistant') as 'user' | 'assistant', content: m.text }));
 
-    addChatMessage({ sender: 'user', text });
+    addChatMessage({ sender: 'user', text: image ? `${text}\n[Picture attached]` : text });
     setInput('');
+    setAttached(null);
+    setAttachNote(null);
     setThinking(true);
     try {
       const res = await fetch('/api/qri-agent', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
-        body: JSON.stringify({ instruction: text, quote: q, history, dataBank, rules: officeTemplate.rules }),
+        body: JSON.stringify({ instruction: typed, quote: q, history, dataBank, rules: officeTemplate.rules, ...(image ? { image: { mime: image.mime, data: image.data } } : {}) }),
       });
       const data = (await res.json().catch(() => null)) as AssistantResponse | null;
       if (!data || !data.ok || !data.quote) {
@@ -354,17 +375,34 @@ function QuotationContent() {
           <div ref={feedEnd} />
         </div>
 
-        <form onSubmit={(e) => { e.preventDefault(); void send(); }} className="p-3 border-t border-slate-200 flex gap-2 items-end">
-          <textarea
-            rows={2}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void send(); } }}
-            placeholder="Type what to add or change…"
-            maxLength={1500}
-            className="flex-1 resize-none border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#FF4D6D]"
-          />
-          <button type="submit" disabled={thinking || !input.trim()} className="p-3 rounded-xl bg-[#FF4D6D] hover:bg-[#FA3B5E] text-white disabled:opacity-40 cursor-pointer" title="Send"><Send className="w-4 h-4" /></button>
+        <form onSubmit={(e) => { e.preventDefault(); void send(); }} className="p-3 border-t border-slate-200">
+          {(attached || attachNote) && (
+            <div className="mb-2 flex items-center gap-2">
+              {attached && (
+                <div className="relative">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={attached.previewUrl} alt="Attached picture" className="h-14 w-14 object-cover rounded-lg border border-slate-200" />
+                  <button type="button" onClick={() => { setAttached(null); setAttachNote(null); }} className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-slate-900 text-white flex items-center justify-center cursor-pointer" title="Remove picture"><X className="w-3 h-3" /></button>
+                </div>
+              )}
+              {attachNote && <span className={`text-[11px] ${attached ? 'text-slate-500' : 'text-red-700'}`}>{attachNote}</span>}
+            </div>
+          )}
+          <div className="flex gap-2 items-end">
+            <input ref={fileInput} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(e) => { void attach(e.target.files?.[0]); e.target.value = ''; }} />
+            <button type="button" onClick={() => fileInput.current?.click()} disabled={thinking} className="p-3 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-40 cursor-pointer" title="Attach a picture (a client's list, a note, a screenshot)"><Paperclip className="w-4 h-4" /></button>
+            <textarea
+              rows={2}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void send(); } }}
+              onPaste={(e) => { const f = Array.from(e.clipboardData.files).find((x) => x.type.startsWith('image/')); if (f) { e.preventDefault(); void attach(f); } }}
+              placeholder="Type what to add or change… (you can paste or attach a picture)"
+              maxLength={1500}
+              className="flex-1 resize-none border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#FF4D6D]"
+            />
+            <button type="submit" disabled={thinking || (!input.trim() && !attached)} className="p-3 rounded-xl bg-[#FF4D6D] hover:bg-[#FA3B5E] text-white disabled:opacity-40 cursor-pointer" title="Send"><Send className="w-4 h-4" /></button>
+          </div>
         </form>
       </aside>
 
