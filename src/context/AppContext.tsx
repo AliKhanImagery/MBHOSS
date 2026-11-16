@@ -23,6 +23,7 @@ import {
   fetchTemplateSettingsFromCloud,
   syncTemplateSettingsToCloud,
   fetchTeamMembersFromCloud,
+  syncTeamMemberFeaturesToCloud,
   syncQuotationToCloud,
   supabase,
   fetchTeamMemberByEmail,
@@ -100,7 +101,7 @@ interface AppContextType {
   // Users Management
   users: User[];
   addUser: (user: Omit<User, 'id'>) => void;
-  updateUserFeatures: (userId: string, features: Partial<User['features']>) => void;
+  updateUserFeatures: (userId: string, features: Partial<User['features']>) => Promise<boolean>;
 
   // Current quotation. Every change goes through the quote engine (recalc), never ad-hoc maths.
   templateState: QuotationTemplate;
@@ -367,10 +368,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setUsers((prev) => [...prev, newUser]);
   };
 
-  const updateUserFeatures = (userId: string, features: Partial<User['features']>) => {
+  /** Applies the change here and saves it to the cloud. Resolves to false if the cloud did not accept it. */
+  const updateUserFeatures = async (userId: string, features: Partial<User['features']>): Promise<boolean> => {
+    const target = users.find((u) => u.id === userId);
     setUsers((prev) =>
       prev.map((u) => (u.id === userId ? { ...u, features: { ...u.features, ...features } } : u))
     );
+    if (!target) return false;
+    return syncTeamMemberFeaturesToCloud(userId, { ...target.features, ...features });
   };
 
   // 5. Current quotation
