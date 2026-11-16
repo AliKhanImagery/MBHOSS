@@ -248,7 +248,7 @@ function QuotationContent() {
 
             <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 mb-4">
               <label className="flex items-center gap-2"><span className="font-semibold whitespace-nowrap">Quotation No:</span>
-                <input className={inline} value={q.quoteRef} readOnly={rangeLocked} title={rangeLocked ? 'Issued automatically from your assigned range' : undefined} placeholder={t.refHint || 'type it here'} onChange={(e) => updateTemplateField('quoteRef', e.target.value)} /></label>
+                <input className={inline} value={q.quoteRef} readOnly={rangeLocked} title={rangeLocked ? 'Issued automatically from your assigned range' : undefined} placeholder={(t.refHint || '').replace(/^[^:#]*[:#]\s*/, '') || 'type it here'} onChange={(e) => updateTemplateField('quoteRef', e.target.value)} /></label>
               <label className="flex items-center gap-2"><span className="font-semibold">Date:</span>
                 <input type="date" className={inline} value={q.date} onChange={(e) => updateTemplateField('date', e.target.value)} /></label>
               <label className="flex items-center gap-2"><span className="font-semibold">To:</span>
