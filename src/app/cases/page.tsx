@@ -20,6 +20,13 @@ import { useApp } from '@/context/AppContext';
 export default function ActiveCasesPage() {
   const router = useRouter();
   const { activeCases, loadCase, deleteCase } = useApp();
+  const confirmDelete = (qc: { id: string; caseRef: string; clientName: string }) => {
+    const ref = qc.caseRef?.trim();
+    const msg = ref
+      ? `Delete quotation ${ref} (${qc.clientName || 'no client'})?\n\nIts number ${ref} becomes free. The next time its owner starts a quotation they will be offered ${ref} back, and can use it, skip it, or choose never to see it again.\n\nThis cannot be undone.`
+      : `Delete this quotation (${qc.clientName || 'no client'})?\n\nThis cannot be undone.`;
+    if (window.confirm(msg)) deleteCase(qc.id);
+  };
 
   const handleOpenCase = (caseId: string) => {
     loadCase(caseId);
@@ -75,7 +82,7 @@ export default function ActiveCasesPage() {
                     <ArrowRight className="w-3.5 h-3.5" />
                   </button>
                   <button
-                    onClick={() => deleteCase(qc.id)}
+                    onClick={() => confirmDelete(qc)}
                     className="p-1 text-slate-400 hover:text-rose-600"
                     title="Delete Case"
                   >
@@ -160,7 +167,7 @@ export default function ActiveCasesPage() {
                           <ArrowRight className="w-3.5 h-3.5" />
                         </button>
                         <button
-                          onClick={() => deleteCase(qc.id)}
+                          onClick={() => confirmDelete(qc)}
                           className="p-1.5 text-slate-400 hover:text-rose-600 rounded-full hover:bg-slate-100"
                           title="Delete Case"
                         >

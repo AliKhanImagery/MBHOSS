@@ -6,7 +6,7 @@ import { useSearchParams } from 'next/navigation';
 import { AlertTriangle, CheckCircle2, ChevronsRight, Download, FilePlus2, MessageSquare, Paperclip, Plus, Save, Send, Trash2, Undo2, X, XCircle } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { checkQuote, formatPKR } from '@/lib/quote-engine';
-import { nextRef, numberInRange } from '@/lib/quote-range';
+import { formatRef, freedSlots, nextRef, numberInRange, withIgnored } from '@/lib/quote-range';
 import { authHeaders } from '@/lib/supabase';
 import { TopBarActions } from '@/components/TopBarActions';
 import { prepareImage, type PreparedImage } from '@/lib/image-prepare';
@@ -51,7 +51,7 @@ function QuotationContent() {
   const deepLinkSent = useRef(false);
 
   const {
-    currentUser, isAdmin, officeTemplate, dataBank, users, activeCases,
+    currentUser, isAdmin, officeTemplate, dataBank, users, activeCases, updateUserFeatures,
     templateState: q, updateTemplateField, updateLineItem, addLineItem, removeLineItem,
     applyQuote, undoQuote, canUndo, startNewQuote, saveCurrentCase,
     chatMessages, addChatMessage,
@@ -85,6 +85,18 @@ function QuotationContent() {
   const usedRefs = useMemo(() => activeCases.map((c) => c.caseRef), [activeCases]);
   const upcoming = useMemo(() => (range ? nextRef(range, usedRefs) : null), [range, usedRefs]);
   const rangeLocked = !!range && !isAdmin;
+
+  // Numbers freed by deleted quotes: offered once per quote, never forced.
+  const freed = useMemo(() => (range ? freedSlots(range, usedRefs) : []), [range, usedRefs]);
+  const [keptNormalFor, setKeptNormalFor] = useState<string | null>(null);
+  const offer = freed[0];
+  const showFreedOffer =
+    !!range && offer !== undefined && upcoming?.ok === true && q.quoteRef === upcoming.ref && keptNormalFor !== q.quoteRef && !usedRefs.includes(q.quoteRef);
+  const ignoreFreed = async (numbers: number[]) => {
+    if (!range || !currentUser) return;
+    const ok = await updateUserFeatures(currentUser.id, { quoteRange: withIgnored(range, numbers) });
+    flash(ok ? 'Done. That number will not be offered again.' : 'Done on this device, but the cloud did not save it.');
+  };
 
   // A blank quotation takes the next number from the person's own range automatically.
   useEffect(() => {
@@ -227,6 +239,21 @@ function QuotationContent() {
           {q.templateVersion !== undefined && q.templateVersion !== t.version && (
             <div className="max-w-[794px] mx-auto mb-3 rounded-lg border border-amber-200 bg-amber-50 text-amber-900 text-xs p-2.5 print:hidden">
               This quotation was started on template version {q.templateVersion}. It now prints with the latest version ({t.version}).
+            </div>
+          )}
+
+          {showFreedOffer && range && offer !== undefined && (
+            <div className="max-w-[794px] mx-auto mb-3 rounded-lg border border-sky-200 bg-sky-50 text-sky-900 text-xs p-3 print:hidden">
+              <div className="font-semibold mb-0.5">{formatRef(range, offer)} is free again{freed.length > 1 ? ` (${freed.length} free numbers in your range)` : ''}.</div>
+              <div className="mb-2 text-sky-800">A quotation that used it was deleted. This quotation is numbered {q.quoteRef} as normal. You can take the free number instead, or carry on.</div>
+              <div className="flex flex-wrap gap-2">
+                <button onClick={() => updateTemplateField('quoteRef', formatRef(range, offer))} className="px-3 py-1.5 rounded-full bg-sky-700 hover:bg-sky-800 text-white font-semibold cursor-pointer">Use {formatRef(range, offer)}</button>
+                <button onClick={() => setKeptNormalFor(q.quoteRef)} className="px-3 py-1.5 rounded-full border border-sky-300 bg-white hover:bg-sky-100 font-semibold cursor-pointer">Keep {q.quoteRef}</button>
+                <button onClick={() => void ignoreFreed([offer])} className="px-3 py-1.5 rounded-full border border-sky-300 bg-white hover:bg-sky-100 font-semibold cursor-pointer">Never offer {formatRef(range, offer)} again</button>
+                {freed.length > 1 && (
+                  <button onClick={() => void ignoreFreed(freed)} className="px-3 py-1.5 rounded-full text-sky-800 hover:underline font-semibold cursor-pointer">Never offer any of these</button>
+                )}
+              </div>
             </div>
           )}
 

@@ -7,6 +7,7 @@ export interface QuoteRange {
   digits: number; // zero-padded width of the number part, e.g. 5
   start: number; // first number the employee may use
   end: number; // last number the employee may use
+  ignored?: number[]; // freed numbers this person chose never to be offered again
 }
 
 export const formatRef = (r: QuoteRange, n: number): string => `${r.prefix}${String(n).padStart(r.digits, '0')}`;
@@ -51,4 +52,28 @@ export function validateRange(r: QuoteRange): string[] {
 export function rangesOverlap(a: QuoteRange, b: QuoteRange): boolean {
   if (a.prefix !== b.prefix || a.digits !== b.digits) return false;
   return a.start <= b.end && b.start <= a.end;
+}
+
+/**
+ * Numbers inside the range that sit below the highest one in use but are not used by any
+ * saved quotation (typically a deleted quote), lowest first. Numbers the person chose to
+ * ignore for good are left out. The normal next number (see nextRef) is unaffected.
+ */
+export function freedSlots(r: QuoteRange, usedRefs: string[]): number[] {
+  const used = new Set<number>();
+  for (const ref of usedRefs) {
+    const n = numberInRange(r, ref);
+    if (n !== null) used.add(n);
+  }
+  if (used.size === 0) return [];
+  const highest = Math.max(...used);
+  const skip = new Set(r.ignored ?? []);
+  const out: number[] = [];
+  for (let n = r.start; n < highest; n++) if (!used.has(n) && !skip.has(n)) out.push(n);
+  return out;
+}
+
+/** The same range with extra numbers added to its "never offer again" list. */
+export function withIgnored(r: QuoteRange, numbers: number[]): QuoteRange {
+  return { ...r, ignored: [...new Set([...(r.ignored ?? []), ...numbers])].sort((a, b) => a - b) };
 }
