@@ -4,7 +4,7 @@
 -- steps 1-3 (accounts created, team_members rows added, sign-in switched on).
 -- If you run it earlier, the live app loses access to its data.
 --
--- Assumes team_members has columns: email, role ('Super Admin' = admin).
+-- Assumes team_members has columns: email, role ('Super Admin', 'SuperAdmin' or 'Admin' = admin).
 -- Tables that do not exist are skipped.
 -- To undo: see the ROLLBACK block at the bottom.
 -- ============================================================================
@@ -17,12 +17,24 @@ $$;
 create or replace function public.is_admin() returns boolean
 language sql stable security definer set search_path = public as $$
   select exists (select 1 from public.team_members
-                 where lower(email) = lower(auth.jwt() ->> 'email') and role = 'Super Admin');
+                 where lower(email) = lower(auth.jwt() ->> 'email')
+                   and lower(regexp_replace(role, '[\s_-]', '', 'g')) in ('superadmin', 'admin'));
 $$;
 
 do $$
-declare t text;
+declare t text; r record;
 begin
+  -- Remove every existing policy on these tables first (for example the wide-open
+  -- "Allow public ..." ones). Policies add up (any one that allows, allows), so an
+  -- old open policy would otherwise keep the data open to everyone.
+  for r in
+    select policyname, tablename from pg_policies
+    where schemaname = 'public'
+      and tablename in ('databank_items', 'quotation_cases', 'quotations', 'template_settings', 'team_members')
+  loop
+    execute format('drop policy if exists %I on public.%I', r.policyname, r.tablename);
+  end loop;
+
   -- Everyday data: any signed-in team member can read and write.
   foreach t in array array['databank_items', 'quotation_cases', 'quotations'] loop
     if to_regclass('public.' || t) is not null then
@@ -52,7 +64,7 @@ begin
   end if;
 end $$;
 
--- ROLLBACK (only if something goes wrong):
+-- ROLLBACK (only if something goes wrong). With RLS off the tables are open again, as before:
 -- alter table public.databank_items disable row level security;
 -- alter table public.quotation_cases disable row level security;
 -- alter table public.quotations disable row level security;

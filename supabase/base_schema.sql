@@ -68,7 +68,7 @@ create table if not exists public.template_settings (
   updated_at timestamptz not null default now()
 );
 
--- Team: who may sign in and what they may do. 'Super Admin' = admin.
+-- Team: who may sign in and what they may do. 'Super Admin', 'SuperAdmin' or 'Admin' = admin.
 create table if not exists public.team_members (
   id uuid primary key default gen_random_uuid(),
   name text,

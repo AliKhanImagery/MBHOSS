@@ -1,6 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import { isAdminRole } from '@/lib/roles';
 import {
   User,
   DataBankItem,
@@ -143,7 +144,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [authLoading, setAuthLoading] = useState<boolean>(AUTH_ENABLED);
   // NOTE: "admin" is only enforced in the screens for now. There is no real sign-in yet,
   // so this is a convenience guard, not security.
-  const isAdmin = currentUser?.role === 'Super Admin';
+  const isAdmin = isAdminRole(currentUser?.role);
 
   // Real sign-in (only when NEXT_PUBLIC_AUTH_ENABLED=true). The role comes from the team_members table.
   const resolveSession = async (email: string | undefined): Promise<boolean> => {

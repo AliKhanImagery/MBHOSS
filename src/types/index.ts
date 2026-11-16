@@ -2,7 +2,7 @@
 // Qri Agentic Procurement OS - Core Domain Types
 // ==============================================================================
 
-export type UserRole = 'Super Admin' | 'Procurement Engineer' | 'Viewer';
+export type UserRole = 'Super Admin' | 'Admin' | 'Procurement Engineer' | 'Viewer';
 
 export interface User {
   id: string;

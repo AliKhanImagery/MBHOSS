@@ -5,7 +5,7 @@ Until this is done the app runs in developer mode: anyone with the link can ente
 0. **Create the tables (once).** Supabase → SQL Editor → paste `supabase/base_schema.sql` → Run. It only creates what is missing and never deletes or changes existing data, so it is safe to re-run. `team_members` starts empty on purpose.
 1. **Create accounts.** Supabase → Authentication → Users → *Add user* (email + password, tick auto-confirm) for every employee, including yourself.
    Then Authentication → Sign In / Providers → turn **off** "Allow new users to sign up", so strangers cannot register themselves.
-2. **List the team.** Table Editor → `team_members`: one row per person with the same email, a name, and `role` = `Super Admin` for admins (anything else for employees). Optional `features` JSON:
+2. **List the team.** Table Editor → `team_members`: one row per person with the same email, a name, and `role` = `Super Admin` (or `Admin`) for admins (anything else for employees). Optional `features` JSON:
    `{"directPdfExport":true,"dataBankWrite":true,"marginOverride":false,"whatsappBot":false}`
    (`marginOverride` = can see cost and margin; give it only to people who should.)
 3. **Switch sign-in on.** Vercel → Project → Settings → Environment Variables → add `NEXT_PUBLIC_AUTH_ENABLED` = `true` → redeploy. Open the site, sign in as an admin, check Quote Template and Make a Quotation work.
