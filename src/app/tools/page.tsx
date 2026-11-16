@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { useHideTopBar } from '@/components/ChromeContext';
 import {
   Wrench, Calculator, Truck, ArrowRightLeft, CheckCircle2,
   AlertTriangle, Info, Layers, Activity, Zap, ArrowLeft,
@@ -94,10 +95,10 @@ function StatCard({ label, value, sub, accent = 'default' }: StatCardProps) {
     amber: 'bg-amber-50 border-amber-300 text-amber-900',
   };
   return (
-    <div className={`p-4 rounded-xl border shadow-2xs ${colors[accent]}`}>
+    <div className={`p-2.5 sm:p-3 rounded-xl border shadow-2xs ${colors[accent]}`}>
       <div className="text-[11px] uppercase font-mono font-black text-slate-700">{label}</div>
-      <div className="text-2xl font-black font-mono mt-1 leading-none text-slate-950">{value}</div>
-      {sub && <div className="text-xs mt-1.5 font-bold text-slate-700 leading-snug">{sub}</div>}
+      <div className="text-lg sm:text-xl font-black font-mono mt-1 leading-none text-slate-950 truncate">{value}</div>
+      {sub && <div className="text-[11px] mt-1 font-bold text-slate-700 leading-snug">{sub}</div>}
     </div>
   );
 }
@@ -967,6 +968,50 @@ function TankCadDiagram({
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
+// ─── Tool view chips + header ────────────────────────────────────────────────
+type ViewDef = { id: string; label: string };
+const TOOL_VIEWS: Record<ToolId, ViewDef[]> = {
+  tank: [{ id: 'dims', label: 'Dimensions' }, { id: 'fab', label: 'Fabrication & cost' }, { id: 'draw', label: '2D drawing' }],
+  pipe: [{ id: 'inputs', label: 'Inputs' }, { id: 'gauge', label: 'Velocity gauge' }, { id: 'standards', label: 'Standards' }],
+  wht: [{ id: 'inputs', label: 'Inputs' }, { id: 'compare', label: 'Rate comparison' }, { id: 'formula', label: 'Formula' }],
+  incoterm: [{ id: 'inputs', label: 'Inputs' }, { id: 'breakdown', label: 'Cost breakdown' }, { id: 'note', label: 'Customs note' }],
+  crossref: [{ id: 'table', label: 'Cross-reference' }, { id: 'checklist', label: 'Checklist' }],
+  motor: [{ id: 'inputs', label: 'Inputs' }, { id: 'data', label: 'Data summary' }, { id: 'formula', label: 'Formula' }],
+};
+
+interface ToolHeaderProps {
+  title: string; badge: string; badgeColor: string; formula: string;
+  onBack: () => void; views: ViewDef[]; view: string; onView: (id: string) => void;
+  children?: React.ReactNode;
+}
+function ToolHeader({ title, badge, badgeColor, formula, onBack, views, view, onView, children }: ToolHeaderProps) {
+  const hasKpis = React.Children.toArray(children).some(Boolean);
+  return (
+    <div className="bg-white border border-slate-300 rounded-2xl px-4 py-3 mb-2 flex-shrink-0 shadow-2xs space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        <div className="flex items-center gap-3 min-w-0">
+          <button onClick={onBack} className="px-3.5 py-1.5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer border border-slate-200 active:scale-95 flex-shrink-0">
+            <ArrowLeft className="w-3.5 h-3.5" /> <span>All Tools</span>
+          </button>
+          <div className="h-4 w-px bg-slate-200 hidden sm:block" />
+          <span className="font-bold text-sm sm:text-base text-slate-900 truncate">{title}</span>
+          <span className={`text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-full border hidden sm:inline-block flex-shrink-0 ${badgeColor}`}>{badge}</span>
+          <span className="text-xs text-slate-500 font-mono font-bold hidden 2xl:inline truncate">{formula}</span>
+        </div>
+        <div className="flex flex-wrap items-center gap-1.5" role="tablist" aria-label="Sections">
+          {views.map((v) => (
+            <button key={v.id} role="tab" aria-selected={view === v.id} onClick={() => onView(v.id)}
+              className={`px-3.5 py-1.5 rounded-full text-xs font-bold border transition-colors cursor-pointer ${view === v.id ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'}`}>
+              {v.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      {hasKpis && <div>{children}</div>}
+    </div>
+  );
+}
+
 function ToolsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -974,6 +1019,8 @@ function ToolsContent() {
   const [activeTool, setActiveTool] = useState<ToolId | null>(toolParam || null);
   const [searchFilter, setSearchFilter] = useState('');
   const [selectedDiscipline, setSelectedDiscipline] = useState<string>('ALL');
+  const [viewByTool, setViewByTool] = useState<Partial<Record<ToolId, string>>>({});
+  useHideTopBar(activeTool !== null);
 
   useEffect(() => {
     if (toolParam && ['tank', 'pipe', 'wht', 'incoterm', 'crossref', 'motor'].includes(toolParam)) {
@@ -1311,6 +1358,8 @@ function ToolsContent() {
   });
 
   const activeTool_ = toolsCatalog.find((t) => t.id === activeTool);
+  const toolViews = activeTool ? TOOL_VIEWS[activeTool] : [];
+  const view = activeTool ? viewByTool[activeTool] ?? toolViews[0].id : '';
 
   return (
     <div className="flex-1 flex flex-col h-full bg-transparent overflow-hidden text-slate-900 select-none">
@@ -1318,37 +1367,18 @@ function ToolsContent() {
       {/* ─── FOCUSED TOOL WORKSPACE ─────────────────────────────────────────── */}
       {activeTool ? (
         <div className="flex-1 flex flex-col h-full overflow-hidden animate-in fade-in">
-          {/* Back Bar */}
-          <div className="bg-white border border-slate-300 rounded-2xl px-4 py-2 mb-2 flex items-center justify-between flex-shrink-0 shadow-2xs">
-            <div className="flex items-center space-x-3">
-              <button
-                onClick={backToMenu}
-                className="px-3.5 py-1.5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold flex items-center space-x-1.5 transition-colors cursor-pointer border border-slate-200 active:scale-95"
-              >
-                <ArrowLeft className="w-3.5 h-3.5" />
-                <span>All Tools</span>
-              </button>
-              <div className="h-4 w-px bg-slate-200 hidden sm:block" />
-              <span className="font-bold text-sm sm:text-base text-slate-900">{activeTool_?.title}</span>
-              <span className={`text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-full border hidden sm:inline-block ${activeTool_?.badgeColor}`}>
-                {activeTool_?.badge}
-              </span>
-            </div>
-            <span className="text-xs text-slate-600 font-mono font-bold hidden md:inline">{activeTool_?.formula}</span>
-          </div>
-
-          {/* Tool Canvas */}
-          <div className="flex-1 overflow-y-auto space-y-2.5 pr-1">
-
-            {/* ================================================================
-                TOOL 1 — TANK VOLUME & CAPACITY SIZER (DUAL-PANE CAD BLUEPRINT)
-                Standards: EHEDG Doc. 9, 3-A Sanitary Standard 20-28,
-                           DIN 28050, ASME BPE-2022
-            ================================================================ */}
+          <ToolHeader
+            title={activeTool_?.title ?? ''}
+            badge={activeTool_?.badge ?? ''}
+            badgeColor={activeTool_?.badgeColor ?? ''}
+            formula={activeTool_?.formula ?? ''}
+            onBack={backToMenu}
+            views={toolViews}
+            view={view}
+            onView={(v) => setViewByTool((m) => ({ ...m, [activeTool]: v }))}
+          >
             {activeTool === 'tank' && (
-              <div className="w-full space-y-2.5">
-                {/* TOP RESULTS KPI HEADER SECTION (Always on Top of the Tool Window) */}
-                <div className="bg-white border border-slate-300 rounded-2xl p-3 shadow-xs grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
                   <div className="p-2 sm:p-2.5 bg-slate-50 rounded-xl border border-slate-200">
                     <div className="text-[10px] font-mono font-black uppercase text-slate-600">Total Volume</div>
                     <div className="text-lg sm:text-xl font-black font-mono text-slate-950 mt-0.5">
@@ -1400,10 +1430,62 @@ function ToolsContent() {
                     <div className="text-[10px] font-bold text-purple-700">Legs: {tankLegHeight.toFixed(2)}m {tankLegHeight >= 0.4 ? '✓' : '⚠'}</div>
                   </div>
                 </div>
+            )}
+            {activeTool === 'pipe' && (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <StatCard label="Fluid Velocity" value={`${fluidVelocityMS.toFixed(2)} m/s`} sub={`${(fluidVelocityMS * 3.281).toFixed(2)} ft/s`} />
+                  <StatCard label="Volumetric Flow" value={`${Math.round(flowLpm)} L/min`} sub={`${flowRateM3H} m³/h`} accent="blue" />
+                  <StatCard label="Reynolds Number" value={Math.round(reynoldsNo).toLocaleString()} sub={flowRegime} accent={reynoldsNo > 4000 ? 'green' : reynoldsNo > 2300 ? 'amber' : 'default'} />
+                  <StatCard label="ΔP per 100m" value={`${pressureDropKpaPer100m.toFixed(1)} kPa`} sub="Darcy-Weisbach estimate" accent={pressureDropKpaPer100m > 50 ? 'red' : 'default'} />
+                </div>
+            )}
+            {activeTool === 'wht' && (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <StatCard label="Invoice Price (Excl. GST)" value={`Rs. ${Math.round(invoiceExclGst).toLocaleString()}`} sub={`Target net: Rs. ${Math.round(targetNet).toLocaleString()}`} />
+                  <StatCard label={`WHT Deduction (${whtPct}%)`} value={`−Rs. ${Math.round(whtDeduction).toLocaleString()}`} sub="Client deducts at source" accent="red" />
+                  <StatCard label="Net Bank Cash Received" value={`Rs. ${Math.round(netCash).toLocaleString()}`} sub={`${effectiveMarkup.toFixed(1)}% retained margin`} accent="green" />
+                  <StatCard label="Total Invoice (Incl. GST)" value={`Rs. ${Math.round(totalInvoice).toLocaleString()}`} sub={`GST: Rs. ${Math.round(gstAmount).toLocaleString()}`} accent="blue" />
+                </div>
+            )}
+            {activeTool === 'incoterm' && (
+<div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
+  <StatCard label="EXW Price" value={`Rs. ${Math.round(exwPkr).toLocaleString()}`} sub={`$${exwUsd.toLocaleString()} USD`} />
+  <StatCard label="Freight & Logistics" value={`Rs. ${Math.round(freightPkr + inlandPkr).toLocaleString()}`} sub="Freight + port & inland" accent="blue" />
+  <StatCard label="Duties & Taxes" value={`Rs. ${Math.round(cdPkr + rdPkr + acdPkr + importWhtPkr).toLocaleString()}`} sub="CD + RD + ACD + import WHT" accent="amber" />
+  <StatCard label="DDP Landed Cost" value={`Rs. ${Math.round(totalDdpPkr).toLocaleString()}`} sub={`+${totalMarkupPct.toFixed(1)}% over EXW`} accent="red" />
+</div>
+            )}
+            {activeTool === 'motor' && (
+<div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2.5">
+                <div className="contents">
+                  <StatCard label="Full Load Current (FLA)" value={`${fla.toFixed(1)} A`} sub="At 415V 3φ 50Hz" />
+                  <StatCard label="Starting Current" value={`${startingCurrent.toFixed(1)} A`} sub={`${STARTING_MULT[starterType]}× FLA (${starterType})`} accent="amber" />
+                  <StatCard label="Recommended Contactor" value={`${getContactor(contactorTarget)} A`} sub="AC-3 duty class" accent="purple" />
+                  <StatCard label="Thermal Overload Setting" value={`${overloadLow.toFixed(1)}–${overloadHigh.toFixed(1)} A`} sub={`Set dial to ${fla.toFixed(1)} A`} accent="green" />
+                </div>
+                <div className="contents">
+                  <StatCard label="Min Copper Cable" value={getCable(deratedFla)} sub={`3-core XLPE/PVC (IEC 60364)`} />
+                  <StatCard label="Derated FLA (Ambient)" value={`${deratedFla.toFixed(1)} A`}
+                    sub={ambientTemp > 40 ? `×${deratingFactor.toFixed(2)} derating @ ${ambientTemp}°C` : 'No derating (≤40°C)'}
+                    accent={ambientTemp > 40 ? 'amber' : 'default'} />
+                  <StatCard label="Recommended MCB/MCCB" value={`${Math.ceil(fla * 1.5)} A`} sub="1.5× FLA (IEC 60898)" accent="blue" />
+                </div>
+</div>
+            )}
+          </ToolHeader>
 
-                <div className="grid grid-cols-1 xl:grid-cols-12 gap-4 items-start">
-                  {/* Left Column: Presets and Sliders */}
-                  <div className="xl:col-span-7 2xl:col-span-6 space-y-3">
+
+          {/* Tool Canvas */}
+          <div className="flex-1 overflow-y-auto space-y-2.5 pr-1">
+            {/* ================================================================
+                TOOL 1 — TANK VOLUME & CAPACITY SIZER (DUAL-PANE CAD BLUEPRINT)
+                Standards: EHEDG Doc. 9, 3-A Sanitary Standard 20-28,
+                           DIN 28050, ASME BPE-2022
+            ================================================================ */}
+            {activeTool === 'tank' && (
+<div className="w-full space-y-2.5">
+{view === 'dims' && (<>
+<div className="max-w-4xl space-y-3">
                     {/* Presets with 20,000L and 30,000L included */}
                     <div className="flex items-center flex-wrap gap-1.5 bg-white border border-slate-300 rounded-2xl px-4 py-2.5 shadow-2xs">
                       <span className="text-xs text-slate-900 font-black mr-1 uppercase tracking-wider">Presets:</span>
@@ -1501,6 +1583,10 @@ function ToolsContent() {
                       </div>
                     </div>
 
+</div>
+</>)}
+{view === 'fab' && (<>
+<div className="max-w-4xl space-y-3">
                     {/* Fabrication Material & Cost Estimator Card (BETA) */}
                     <div className="bg-white border border-slate-300/90 rounded-2xl p-5 shadow-xs space-y-4">
                       <div className="flex items-center justify-between pb-2.5 border-b border-slate-200">
@@ -1741,10 +1827,10 @@ function ToolsContent() {
                       <p className="text-xs font-mono text-blue-950 font-black">V_total = V_cyl + V_bottom (Conical, Torispherical Klöpperboden, or 5° Sloped)</p>
                       <p className="text-xs text-blue-900 leading-relaxed font-medium">Pricing model accounts for circular dished head blank scrap (+14%), spinning knuckle thinning (+1mm stock), 4x Schedule 40 tubular support legs, DN500 davit manway, ASME BPE nozzles, TIG Argon root gas shielding, acid passivation per ASTM A380, and internal mechanical polishing to sanitary surface finish Ra &lt; 0.4µm.</p>
                     </NoteCard>
-                  </div>
-
-                  {/* Right Column: Instant 2D CAD Mechanical Diagram */}
-                  <div className="xl:col-span-5 2xl:col-span-6 sticky top-2">
+</div>
+</>)}
+{view === 'draw' && (<>
+<div className="max-w-5xl mx-auto">
                     <TankCadDiagram
                       diameter={tankDiameter}
                       cylHeight={tankCylHeight}
@@ -1762,17 +1848,18 @@ function ToolsContent() {
                       drySteelKg={totalDrySteelKg}
                       estTankPricePkr={estimatedTankPricePkr}
                     />
-                  </div>
-                </div>
-              </div>
-            )}
+</div>
+</>)}
+</div>
+)}
 
             {/* ================================================================
                 TOOL 2 — PIPING FLOW & VELOCITY SIZER
                 Standards: DIN 11850, EHEDG Doc. 9, Darcy-Weisbach, IEC 60534
             ================================================================ */}
             {activeTool === 'pipe' && (
-              <div className="max-w-4xl space-y-5">
+<div className="max-w-4xl space-y-5">
+{view === 'inputs' && (<>
                 <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs space-y-6">
                   <h2 className="text-lg font-bold text-slate-900 flex items-center space-x-2 pb-3 border-b border-slate-100">
                     <Activity className="w-5 h-5 text-cyan-600" />
@@ -1813,8 +1900,8 @@ function ToolsContent() {
                     />
                   </div>
                 </div>
-
-                {/* Velocity Gauge */}
+</>)}
+{view === 'gauge' && (<>
                 <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-xs space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">Velocity Gauge — 0 to 5 m/s</span>
@@ -1836,14 +1923,8 @@ function ToolsContent() {
                     <span>0</span><span>Too Slow</span><span>Optimal</span><span>High</span><span>5.0 m/s</span>
                   </div>
                 </div>
-
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  <StatCard label="Fluid Velocity" value={`${fluidVelocityMS.toFixed(2)} m/s`} sub={`${(fluidVelocityMS * 3.281).toFixed(2)} ft/s`} />
-                  <StatCard label="Volumetric Flow" value={`${Math.round(flowLpm)} L/min`} sub={`${flowRateM3H} m³/h`} accent="blue" />
-                  <StatCard label="Reynolds Number" value={Math.round(reynoldsNo).toLocaleString()} sub={flowRegime} accent={reynoldsNo > 4000 ? 'green' : reynoldsNo > 2300 ? 'amber' : 'default'} />
-                  <StatCard label="ΔP per 100m" value={`${pressureDropKpaPer100m.toFixed(1)} kPa`} sub="Darcy-Weisbach estimate" accent={pressureDropKpaPer100m > 50 ? 'red' : 'default'} />
-                </div>
-
+</>)}
+{view === 'standards' && (<>
                 <NoteCard icon={<Info className="w-5 h-5 text-cyan-600" />} title="EHEDG Velocity Design Limits" color="bg-cyan-50/80 border-cyan-200 text-cyan-950">
                   <div className="grid grid-cols-2 gap-x-4 text-xs text-cyan-900 leading-relaxed">
                     <div><strong>Product line:</strong> 1.2–2.0 m/s — minimize shear on liquid foods</div>
@@ -1852,15 +1933,17 @@ function ToolsContent() {
                     <div><strong>Water hammer:</strong> &gt; 3.0 m/s — surge arrester required</div>
                   </div>
                 </NoteCard>
-              </div>
-            )}
+</>)}
+</div>
+)}
 
             {/* ================================================================
                 TOOL 3 — REVERSE WHT & GST GROSS-UP
                 FBR Income Tax Ordinance 2001, Finance Act 2024
             ================================================================ */}
             {activeTool === 'wht' && (
-              <div className="max-w-4xl space-y-5">
+<div className="max-w-4xl space-y-5">
+{view === 'inputs' && (<>
                 <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs space-y-6">
                   <h2 className="text-lg font-bold text-slate-900 flex items-center space-x-2 pb-3 border-b border-slate-100">
                     <Calculator className="w-5 h-5 text-[#FF4D6D]" />
@@ -1914,16 +1997,8 @@ function ToolsContent() {
                     </div>
                   </div>
                 </div>
-
-                {/* Results */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  <StatCard label="Invoice Price (Excl. GST)" value={`Rs. ${Math.round(invoiceExclGst).toLocaleString()}`} sub={`Target net: Rs. ${Math.round(targetNet).toLocaleString()}`} />
-                  <StatCard label={`WHT Deduction (${whtPct}%)`} value={`−Rs. ${Math.round(whtDeduction).toLocaleString()}`} sub="Client deducts at source" accent="red" />
-                  <StatCard label="Net Bank Cash Received" value={`Rs. ${Math.round(netCash).toLocaleString()}`} sub={`${effectiveMarkup.toFixed(1)}% retained margin`} accent="green" />
-                  <StatCard label="Total Invoice (Incl. GST)" value={`Rs. ${Math.round(totalInvoice).toLocaleString()}`} sub={`GST: Rs. ${Math.round(gstAmount).toLocaleString()}`} accent="blue" />
-                </div>
-
-                {/* Comparison Table */}
+</>)}
+{view === 'compare' && (<>
                 <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-xs">
                   <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">WHT Rate Comparison</div>
                   <div className="space-y-1.5">
@@ -1941,13 +2016,15 @@ function ToolsContent() {
                     })}
                   </div>
                 </div>
-
+</>)}
+{view === 'formula' && (<>
                 <NoteCard icon={<Info className="w-5 h-5 text-amber-600" />} title="Golden Rule of Commercial Tax Math" color="bg-amber-50/80 border-amber-200 text-amber-950">
                   <p className="text-sm font-mono font-bold text-amber-900">UnitPrice = (BaseCost × (1 + Margin)) ÷ (1 − WHT%)</p>
                   <p className="text-xs text-amber-800 leading-relaxed">Always <strong>divide</strong> by (1 − WHT%). Never multiply by (1 + WHT%). Clients deduct WHT on gross invoiced value — multiplying leaves you short in bank.</p>
                 </NoteCard>
-              </div>
-            )}
+</>)}
+</div>
+)}
 
             {/* ================================================================
                 TOOL 4 — INCOTERM LANDED COST ESTIMATOR
@@ -1955,7 +2032,8 @@ function ToolsContent() {
                 Import WHT: Section 148, ITO 2001 — 6% for filers
             ================================================================ */}
             {activeTool === 'incoterm' && (
-              <div className="max-w-4xl space-y-5">
+<div className="max-w-4xl space-y-5">
+{view === 'inputs' && (<>
                 <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs space-y-6">
                   <h2 className="text-lg font-bold text-slate-900 flex items-center space-x-2 pb-3 border-b border-slate-100">
                     <Truck className="w-5 h-5 text-amber-600" />
@@ -1997,8 +2075,8 @@ function ToolsContent() {
                     </div>
                   </div>
                 </div>
-
-                {/* Detailed Breakdown Table */}
+</>)}
+{view === 'breakdown' && (<>
                 <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-xs font-mono text-sm">
                   <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4">Cost Breakdown</div>
                   <div className="space-y-2.5">
@@ -2028,19 +2106,22 @@ function ToolsContent() {
                     </div>
                   </div>
                 </div>
-
+</>)}
+{view === 'note' && (<>
                 <NoteCard icon={<AlertTriangle className="w-5 h-5 text-amber-600" />} title="Pakistan Customs Note" color="bg-amber-50/80 border-amber-200 text-amber-950">
                   <p className="text-xs text-amber-800 leading-relaxed">Import WHT (Section 148, ITO 2001) is 6% for filers on CIF + duties. Rates vary by HS code — verify via FBR's customs portal (customs.fbr.gov.pk) before final commercial negotiation. WEBOC clearance adds 2–5 working days.</p>
                 </NoteCard>
-              </div>
-            )}
+</>)}
+</div>
+)}
 
             {/* ================================================================
                 TOOL 5 — SWITCHGEAR CROSS-REFERENCE
                 IEC 60947-4-1 (Contactors), IEC 60947-5-1 (Control Devices)
             ================================================================ */}
             {activeTool === 'crossref' && (
-              <div className="max-w-5xl space-y-5">
+<div className="max-w-5xl space-y-5">
+{view === 'table' && (<>
                 <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-xs space-y-4">
                   <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
                     <div>
@@ -2066,7 +2147,6 @@ function ToolsContent() {
                     />
                   </div>
                 </div>
-
                 <div className="bg-white border border-slate-200/80 rounded-2xl shadow-xs overflow-hidden">
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm text-left">
@@ -2098,7 +2178,8 @@ function ToolsContent() {
                     </table>
                   </div>
                 </div>
-
+</>)}
+{view === 'checklist' && (<>
                 <NoteCard icon={<AlertTriangle className="w-5 h-5 text-rose-500" />} title="Cross-Reference Validation Checklist" color="bg-rose-50/60 border-rose-200 text-rose-950">
                   <div className="grid grid-cols-2 gap-x-4 text-xs text-rose-900 leading-relaxed">
                     <div>✓ <strong>Coil voltage</strong> must exactly match PLC output card rating</div>
@@ -2107,8 +2188,9 @@ function ToolsContent() {
                     <div>✓ <strong>Mechanical life</strong>: check cycles for high-frequency switching duty</div>
                   </div>
                 </NoteCard>
-              </div>
-            )}
+</>)}
+</div>
+)}
 
             {/* ================================================================
                 TOOL 6 — MOTOR FLA & CABLE SIZER
@@ -2116,7 +2198,8 @@ function ToolsContent() {
                 IEC 60947-4-1 (Contactor AC-3 duty)
             ================================================================ */}
             {activeTool === 'motor' && (
-              <div className="max-w-4xl space-y-5">
+<div className="max-w-4xl space-y-5">
+{view === 'inputs' && (<>
                 <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs space-y-6">
                   <h2 className="text-lg font-bold text-slate-900 flex items-center space-x-2 pb-3 border-b border-slate-100">
                     <Zap className="w-5 h-5 text-purple-600" />
@@ -2175,25 +2258,8 @@ function ToolsContent() {
                     </div>
                   </div>
                 </div>
-
-                {/* Primary Results */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  <StatCard label="Full Load Current (FLA)" value={`${fla.toFixed(1)} A`} sub="At 415V 3φ 50Hz" />
-                  <StatCard label="Starting Current" value={`${startingCurrent.toFixed(1)} A`} sub={`${STARTING_MULT[starterType]}× FLA (${starterType})`} accent="amber" />
-                  <StatCard label="Recommended Contactor" value={`${getContactor(contactorTarget)} A`} sub="AC-3 duty class" accent="purple" />
-                  <StatCard label="Thermal Overload Setting" value={`${overloadLow.toFixed(1)}–${overloadHigh.toFixed(1)} A`} sub={`Set dial to ${fla.toFixed(1)} A`} accent="green" />
-                </div>
-
-                {/* Cable & Derating */}
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                  <StatCard label="Min Copper Cable" value={getCable(deratedFla)} sub={`3-core XLPE/PVC (IEC 60364)`} />
-                  <StatCard label="Derated FLA (Ambient)" value={`${deratedFla.toFixed(1)} A`}
-                    sub={ambientTemp > 40 ? `×${deratingFactor.toFixed(2)} derating @ ${ambientTemp}°C` : 'No derating (≤40°C)'}
-                    accent={ambientTemp > 40 ? 'amber' : 'default'} />
-                  <StatCard label="Recommended MCB/MCCB" value={`${Math.ceil(fla * 1.5)} A`} sub="1.5× FLA (IEC 60898)" accent="blue" />
-                </div>
-
-                {/* Motor Data Table */}
+</>)}
+{view === 'data' && (<>
                 <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-xs">
                   <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Complete Motor Data Summary</div>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm font-mono">
@@ -2214,7 +2280,8 @@ function ToolsContent() {
                     ))}
                   </div>
                 </div>
-
+</>)}
+{view === 'formula' && (<>
                 <NoteCard icon={<Zap className="w-5 h-5 text-purple-600" />} title="IEC Motor Engineering Formula" color="bg-purple-50/80 border-purple-200 text-purple-950">
                   <p className="text-sm font-mono font-bold text-purple-900">I_FLA = P(W) ÷ (√3 × V × cos φ × η)</p>
                   <div className="grid grid-cols-2 gap-x-4 text-xs text-purple-800 leading-relaxed">
@@ -2224,8 +2291,9 @@ function ToolsContent() {
                     <div>Cable derating per IEC 60364-5-52 Table B.52.3 (grouping + temperature)</div>
                   </div>
                 </NoteCard>
-              </div>
-            )}
+</>)}
+</div>
+)}
 
           </div>
         </div>

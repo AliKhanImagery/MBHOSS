@@ -1,5 +1,6 @@
 'use client';
 
+import { ChromeProvider, useChrome } from '@/components/ChromeContext';
 import React, { useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
@@ -24,6 +25,15 @@ import { AUTH_ENABLED } from '@/lib/auth-config';
 import { authLinkType } from '@/lib/supabase';
 
 export function AppShell({ children }: { children: React.ReactNode }) {
+  return (
+    <ChromeProvider>
+      <AppShellInner>{children}</AppShellInner>
+    </ChromeProvider>
+  );
+}
+
+function AppShellInner({ children }: { children: React.ReactNode }) {
+  const { hideTopBar } = useChrome();
   const pathname = usePathname();
   const router = useRouter();
   const { currentUser, logout, activeCases, cloudStatus, refreshFromCloud, authLoading } = useApp();
@@ -203,7 +213,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <div className="flex-1 flex flex-col h-[calc(100dvh-3.5rem)] md:h-[100dvh] overflow-hidden bg-[#F4F5F7]">
         {/* One slim top bar: back button on the left, the page's own buttons beside it.
             On the home page it only shows on phones (profile and sync live in the left rail on larger screens). */}
-        <header className={`h-11 px-3 sm:px-4 bg-white border-b border-slate-200/80 items-center gap-2 flex-shrink-0 z-20 print:hidden ${isHome ? 'flex md:hidden' : 'flex'}`}>
+        <header className={`h-11 px-3 sm:px-4 bg-white border-b border-slate-200/80 items-center gap-2 flex-shrink-0 z-20 print:hidden ${isHome || hideTopBar ? 'flex md:hidden' : 'flex'}`}>
           {!isHome && (
             <button
               onClick={goBack}
