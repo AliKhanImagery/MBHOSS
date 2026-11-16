@@ -1,6 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import { isAdminRole } from '@/lib/roles';
 import {
   User,
   DataBankItem,
@@ -23,7 +24,10 @@ import {
   syncTemplateSettingsToCloud,
   fetchTeamMembersFromCloud,
   syncQuotationToCloud,
+  supabase,
+  fetchTeamMemberByEmail,
 } from '@/lib/supabase';
+import { AUTH_ENABLED } from '@/lib/auth-config';
 
 // Default initial user for the bypass login
 export const DEFAULT_USER: User = {
@@ -77,7 +81,10 @@ interface AppContextType {
   // Auth
   currentUser: User | null;
   isAdmin: boolean;
-  loginAsAliKhan: () => void;
+  authEnabled: boolean;
+  authLoading: boolean;
+  signIn: (email: string, password: string) => Promise<{ ok: boolean; error?: string }>;
+  loginAsAliKhan: () => void; // developer mode only (sign-in switched off)
   logout: () => void;
 
   // Office template — published by an admin, used as-is by everyone
@@ -127,17 +134,59 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 export function AppProvider({ children }: { children: React.ReactNode }) {
   // 1. Auth State
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
+    if (AUTH_ENABLED) return null; // real sign-in: wait for the session
     if (typeof window !== 'undefined') {
       const stored = localStorage.getItem('qri_user');
-      return stored ? JSON.parse(stored) : DEFAULT_USER; // Default logged in for fast dev
+      return stored ? JSON.parse(stored) : DEFAULT_USER; // developer mode
     }
     return DEFAULT_USER;
   });
+  const [authLoading, setAuthLoading] = useState<boolean>(AUTH_ENABLED);
   // NOTE: "admin" is only enforced in the screens for now. There is no real sign-in yet,
   // so this is a convenience guard, not security.
-  const isAdmin = currentUser?.role === 'Super Admin';
+  const isAdmin = isAdminRole(currentUser?.role);
+
+  // Real sign-in (only when NEXT_PUBLIC_AUTH_ENABLED=true). The role comes from the team_members table.
+  const resolveSession = async (email: string | undefined): Promise<boolean> => {
+    if (!email) return false;
+    const member = await fetchTeamMemberByEmail(email);
+    if (!member) return false;
+    setCurrentUser(member);
+    return true;
+  };
+
+  useEffect(() => {
+    if (!AUTH_ENABLED) return;
+    let alive = true;
+    supabase.auth.getSession().then(async ({ data }) => {
+      if (alive && data.session) await resolveSession(data.session.user.email);
+      if (alive) setAuthLoading(false);
+    });
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_OUT') setCurrentUser(null);
+      else if (session && event === 'TOKEN_REFRESHED') void resolveSession(session.user.email);
+    });
+    return () => {
+      alive = false;
+      sub.subscription.unsubscribe();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const signIn = async (email: string, password: string) => {
+    if (!AUTH_ENABLED) return { ok: false, error: 'Sign-in is switched off.' };
+    const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+    if (error || !data.user) return { ok: false, error: 'That email or password is not correct.' };
+    const listed = await resolveSession(data.user.email);
+    if (!listed) {
+      await supabase.auth.signOut();
+      return { ok: false, error: 'Your account is not set up for this app yet. Please ask an admin.' };
+    }
+    return { ok: true };
+  };
 
   const loginAsAliKhan = () => {
+    if (AUTH_ENABLED) return; // never available once real sign-in is on
     setCurrentUser(DEFAULT_USER);
     if (typeof window !== 'undefined') {
       localStorage.setItem('qri_user', JSON.stringify(DEFAULT_USER));
@@ -145,6 +194,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = () => {
+    if (AUTH_ENABLED) {
+      void supabase.auth.signOut();
+      // shared office computers: do not leave the last person's work behind
+      ['qri_current_template', 'qri_chat_v2', 'qri_active_cases', 'qri_databank', 'qri_users_list'].forEach((k) => localStorage.removeItem(k));
+    }
     setCurrentUser(null);
     if (typeof window !== 'undefined') {
       localStorage.removeItem('qri_user');
@@ -238,9 +292,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
+    if (AUTH_ENABLED && !currentUser) return; // with RLS on, data is only readable after sign-in
     refreshFromCloud();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [currentUser?.id]);
 
   // 3. Data Bank State
   const [dataBank, setDataBank] = useState<DataBankItem[]>(() => {
@@ -289,35 +344,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const stored = localStorage.getItem('qri_users_list');
       if (stored) return JSON.parse(stored);
     }
-    return [
-      DEFAULT_USER,
-      {
-        id: 'usr-tariq',
-        name: 'Tariq Mehmood',
-        email: 'tariq@qriprocurement.com',
-        role: 'Super Admin',
-        avatar: 'TM',
-        features: {
-          directPdfExport: true,
-          dataBankWrite: true,
-          marginOverride: true,
-          whatsappBot: true,
-        },
-      },
-      {
-        id: 'usr-hamza',
-        name: 'Hamza Rauf',
-        email: 'hamza.rauf@qriprocurement.com',
-        role: 'Procurement Engineer',
-        avatar: 'HR',
-        features: {
-          directPdfExport: true,
-          dataBankWrite: false,
-          marginOverride: false,
-          whatsappBot: true,
-        },
-      },
-    ];
+    return AUTH_ENABLED ? [] : [DEFAULT_USER]; // no made-up team members
   });
 
   useEffect(() => {
@@ -523,6 +550,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       value={{
         currentUser,
         isAdmin,
+        authEnabled: AUTH_ENABLED,
+        authLoading,
+        signIn,
         loginAsAliKhan,
         logout,
         officeTemplate,

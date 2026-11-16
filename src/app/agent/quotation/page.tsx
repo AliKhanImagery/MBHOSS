@@ -6,6 +6,7 @@ import { useSearchParams } from 'next/navigation';
 import { AlertTriangle, CheckCircle2, Download, FilePlus2, Plus, Save, Send, Trash2, Undo2, XCircle } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { checkQuote, formatPKR } from '@/lib/quote-engine';
+import { authHeaders } from '@/lib/supabase';
 import type { QuotationTemplate } from '@/types';
 
 interface AssistantResponse {
@@ -74,7 +75,7 @@ function QuotationContent() {
     try {
       const res = await fetch('/api/qri-agent', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
         body: JSON.stringify({ instruction: text, quote: q, history, dataBank, rules: officeTemplate.rules }),
       });
       const data = (await res.json().catch(() => null)) as AssistantResponse | null;
