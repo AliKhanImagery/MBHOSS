@@ -39,9 +39,17 @@ export interface QuoteLineItem {
   marginPct: number; // e.g. 15%
   unitPrice: number; // Selling unit price after margin
   total: number; // qty * unitPrice
+  dataBankId?: string; // Data Bank row the cost came from (traceability)
+  costSource?: 'databank' | 'user'; // 'user' = cost was typed/stated by a person, never by the AI
 }
 
+/**
+ * The quote *data* for one case. The letterhead, standing T&Cs and signatory are
+ * NOT part of it: they come from the admin-published OfficeTemplate and are
+ * rendered at display time. `notes` holds only extra terms specific to this quote.
+ */
 export interface QuotationTemplate {
+  templateVersion?: number; // OfficeTemplate.version this quote was made with
   quoteRef: string;
   date: string;
   validityDays: number;
@@ -127,4 +135,43 @@ export interface SourcingDispatchPackage {
   fitReason: string;
   status: 'draft' | 'dispatched' | 'skipped';
   dispatchedAt?: string;
+}
+
+// ─── Office Template (admin-published; quotes can never change it) ───────────
+
+/** Optional business rules. `null` means "no rule set" — nothing is ever assumed. */
+export interface TemplateRules {
+  defaultMarginPct: number | null;
+  minMarginPct: number | null;
+  defaultValidityDays: number | null;
+  maxValidityDays: number | null;
+  maxCreditDays: number | null;
+}
+
+export interface OfficeTemplate {
+  version: number;
+  publishedAt: string;
+  publishedBy: string;
+  sourceDocName: string; // the sample quotation it was set up from
+  letterhead: {
+    lines: string[]; // header text, verbatim from the sample
+    logoDataUrl: string | null;
+    backgroundPdfDataUrl: string | null; // pre-printed letterhead used as page background
+    backgroundPdfName: string;
+    footerLines: string[];
+  };
+  signatory: { company: string; name: string; designation: string };
+  terms: string[]; // standing T&Cs, verbatim, in order
+  refHint: string; // free-text hint for the quote number format, e.g. "MBH-QT-2026-###"
+  taxStatement: string; // printed under the totals
+  rules: TemplateRules;
+}
+
+export type CheckSeverity = 'block' | 'warn';
+
+export interface QuoteCheck {
+  severity: CheckSeverity;
+  code: string;
+  message: string; // plain language, shown to employees
+  lineId?: string;
 }

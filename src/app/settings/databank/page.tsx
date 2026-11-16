@@ -19,8 +19,7 @@ import { useApp } from '@/context/AppContext';
 import { DataBankItem } from '@/types';
 
 export default function DataBankPage() {
-  const { dataBank, addDataBankItem, updateDataBankItem, deleteDataBankItem, resetDataBank } =
-    useApp();
+  const { dataBank, addDataBankItem, updateDataBankItem, deleteDataBankItem } = useApp();
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -97,14 +96,6 @@ export default function DataBankPage() {
             />
           </div>
           <div className="flex items-center space-x-2">
-            <button
-              onClick={resetDataBank}
-              className="flex items-center space-x-1.5 px-3.5 py-2 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs sm:text-sm font-semibold transition-colors cursor-pointer border border-slate-200"
-              title="Reset to 5 Seed Industrial Items"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-              <span>Reset</span>
-            </button>
             <button
               onClick={() => {
                 setEditingId(null);

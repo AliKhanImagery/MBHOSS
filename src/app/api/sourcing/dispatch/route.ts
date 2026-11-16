@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
     if (apiKey) {
       try {
         const ai = new GoogleGenerativeAI(apiKey);
-        const model = ai.getGenerativeModel({ model: 'gemini-1.5-flash' });
+        const model = ai.getGenerativeModel({ model: process.env.GEMINI_MODEL || 'gemini-2.5-flash' });
 
         const prompt = `You are an industrial procurement sourcing automation engine in Pakistan.
 You are given a list of candidate suppliers and a master RFQ bill of materials.

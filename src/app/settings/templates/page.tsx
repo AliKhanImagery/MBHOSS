@@ -1,407 +1,340 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
-import mammoth from 'mammoth';
-import {
-  FileCog,
-  Upload,
-  FileText,
-  CheckCircle2,
-  AlertTriangle,
-  RotateCcw,
-  Save,
-  Trash2,
-  Eye,
-  Sliders,
-  ShieldCheck,
-  FileCheck,
-  Sparkles,
-} from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { FileCog, Upload, CheckCircle2, AlertTriangle, Trash2, Plus, Lock, FileText, Info } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
+import { DEFAULT_TAX_STATEMENT, extractOfficeTemplate, type TemplateDraft } from '@/lib/docx-template';
+import type { OfficeTemplate, TemplateRules } from '@/types';
 
-export default function TemplateSettingsPage() {
-  const {
-    globalLetterheadPdf,
-    letterheadFileName,
-    setGlobalLetterheadPdf,
-    masterTemplateRules,
-    setMasterTemplateRules,
-    resetMasterTemplateRules,
-  } = useApp();
+const EMPTY_RULES: TemplateRules = {
+  defaultMarginPct: null,
+  minMarginPct: null,
+  defaultValidityDays: null,
+  maxValidityDays: null,
+  maxCreditDays: null,
+};
 
-  const [pdfUploadNotice, setPdfUploadNotice] = useState<string | null>(null);
-  const [docxUploadNotice, setDocxUploadNotice] = useState<string | null>(null);
-  const [isExtractingDocx, setIsExtractingDocx] = useState(false);
-  const [rulesEditorText, setRulesEditorText] = useState(masterTemplateRules);
-  const [showPdfPreview, setShowPdfPreview] = useState(false);
-  const [saveSuccess, setSaveSuccess] = useState(false);
+const blankDraft = (): TemplateDraft => ({
+  sourceDocName: '',
+  letterhead: { lines: [], logoDataUrl: null, backgroundPdfDataUrl: null, backgroundPdfName: '', footerLines: [] },
+  signatory: { company: '', name: '', designation: '' },
+  terms: [],
+  refHint: '',
+  taxStatement: DEFAULT_TAX_STATEMENT,
+  rules: { ...EMPTY_RULES },
+});
 
-  const pdfInputRef = useRef<HTMLInputElement>(null);
-  const docxInputRef = useRef<HTMLInputElement>(null);
+const toDraft = (t: OfficeTemplate): TemplateDraft => {
+  const { version, publishedAt, publishedBy, ...rest } = t;
+  void version; void publishedAt; void publishedBy;
+  return JSON.parse(JSON.stringify(rest)) as TemplateDraft;
+};
 
-  // Sync state if context changes
-  React.useEffect(() => {
-    setRulesEditorText(masterTemplateRules);
-  }, [masterTemplateRules]);
+const lines = (s: string) => s.split('\n').map((l) => l.trim()).filter(Boolean);
 
-  // 1. Handle Global Letterhead PDF Upload
-  const handlePdfUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
-      alert('Please upload a valid PDF document.');
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = reader.result as string;
-      setGlobalLetterheadPdf(result, file.name);
-      setPdfUploadNotice(`Successfully uploaded & saved "${file.name}" to global template storage.`);
-      setTimeout(() => setPdfUploadNotice(null), 4000);
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const handleRemovePdf = () => {
-    setGlobalLetterheadPdf(null, '');
-    setPdfUploadNotice('Removed custom PDF letterhead. Default vector letterhead active.');
-    setTimeout(() => setPdfUploadNotice(null), 3000);
-  };
-
-  // 2. Handle DOCX Upload & Raw Text / T&C Extraction using Mammoth
-  const handleDocxUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (!file.name.toLowerCase().endsWith('.docx')) {
-      alert('Please upload a valid Microsoft Word (.docx) file.');
-      return;
-    }
-
-    setIsExtractingDocx(true);
-    try {
-      const arrayBuffer = await file.arrayBuffer();
-      const result = await mammoth.extractRawText({ arrayBuffer });
-      const rawExtracted = result.value.trim();
-
-      if (!rawExtracted) {
-        throw new Error('No readable text could be extracted from this Word document.');
-      }
-
-      // Structure and clean extracted text block
-      const structuredRules = `MASTER COMMERCIAL RULES & T&CS (EXTRACTED FROM: ${file.name.toUpperCase()}):
-${rawExtracted}`;
-
-      setRulesEditorText(structuredRules);
-      setMasterTemplateRules(structuredRules);
-      setDocxUploadNotice(
-        `Extracted ${rawExtracted.split(/\s+/).length} words and saved into master_template_rules successfully.`
-      );
-      setTimeout(() => setDocxUploadNotice(null), 5000);
-    } catch (err: any) {
-      console.error(err);
-      alert(`Failed to extract text from .docx: ${err.message}`);
-    } finally {
-      setIsExtractingDocx(false);
-    }
-  };
-
-  const handleSaveManualRules = () => {
-    setMasterTemplateRules(rulesEditorText);
-    setSaveSuccess(true);
-    setTimeout(() => setSaveSuccess(false), 2500);
-  };
-
-  // Sample DOCX / T&Cs quick load
-  const handleLoadSampleTerms = () => {
-    const sample = `STANDARD COMMERCIAL RULES & MANDATORY TERMS (OOS MASTER TEMPLATE):
-1. PAYMENT TERMS: Standard terms are 100% Advance Against Proforma Invoice, or 50% Advance with 50% Balance on Delivery. Any credit term exceeding 30 Days (e.g. 60 Days or 90 Days Credit) is strictly prohibited without written CFO/CTO approval.
-2. DELIVERY TERMS: Standard ex-stock delivery is 1-3 business days. Indent / import items are 2-4 weeks standard air freight. Unrealistic delivery commitments (e.g. same-day delivery or >6 weeks without indent contract) violate template policy.
-3. QUOTATION VALIDITY: Standard price validity is strictly 7 calendar days due to import rate and PKR/USD currency volatility. Quoting validity exceeding 15 days is prohibited.
-4. TARGET PROFIT MARGIN: Minimum baseline margin is 12%. Recommended operational target margin is 15% to 20%. Margins below 10% require management override.
-5. TAX REGIME: Domestic tenders default to without GST unless client specifies sales tax invoice (+18% GST). Invoices requiring WHT deduction must be grossed up.
-6. WARRANTY: Standard 12 months manufacturer warranty against manufacturing defects only.
-7. PENALTIES: Late delivery penalties or liquidated damages (LD clauses) are not accepted.`;
-
-    setRulesEditorText(sample);
-    setMasterTemplateRules(sample);
-    setDocxUploadNotice('Loaded standard OOS Commercial Rules & T&Cs.');
-    setTimeout(() => setDocxUploadNotice(null), 3000);
-  };
-
+// ─── Read-only preview of the template (used for everyone, and as the live preview for admins) ───
+function TemplatePreview({ t }: { t: TemplateDraft }) {
   return (
-    <div className="flex-1 flex flex-col h-full bg-transparent overflow-hidden text-slate-900 select-none">
-      {/* Sub Header & Actions Bar */}
-      <div className="bg-white border border-slate-200/80 rounded-2xl px-5 py-3.5 mb-4 flex items-center justify-between flex-shrink-0 shadow-xs">
-        <div className="flex items-center space-x-3">
-          <div className="w-9 h-9 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600">
-            <FileCog className="w-5 h-5" />
-          </div>
-          <div>
-            <h1 className="text-sm sm:text-base font-bold text-slate-900 flex items-center space-x-2">
-              <span>Master Commercial Rules &amp; Letterhead</span>
-              <span className="text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full font-mono font-semibold">
-                Active in Qri AI
-              </span>
-            </h1>
-            <p className="text-xs text-slate-500">
-              Upload global letterhead backgrounds (PDF) and extract master T&amp;C rules from Word (.docx) files
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-center space-x-2">
-          {saveSuccess && (
-            <span className="hidden sm:flex text-xs text-emerald-600 font-semibold items-center space-x-1 animate-in fade-in">
-              <CheckCircle2 className="w-3.5 h-3.5" />
-              <span>Rules Saved!</span>
-            </span>
+    <div className="bg-white border border-slate-200 rounded-xl shadow-xs p-5 text-[11px] leading-relaxed text-slate-800">
+      <div className="border-b border-slate-200 pb-3 mb-3 flex items-start gap-3">
+        {t.letterhead.logoDataUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={t.letterhead.logoDataUrl} alt="Company logo" className="h-10 w-auto" />
+        )}
+        <div>
+          {t.letterhead.lines.length ? (
+            t.letterhead.lines.map((l, i) => (
+              <div key={i} className={i === 0 ? 'font-bold text-xs' : 'text-slate-500'}>{l}</div>
+            ))
+          ) : (
+            <div className="text-slate-400 italic">No letterhead yet</div>
           )}
-          <button
-            onClick={resetMasterTemplateRules}
-            className="flex items-center space-x-1 px-3 py-1.5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold border border-slate-200 cursor-pointer transition-colors"
-            title="Reset Master Template Rules to Default"
-          >
-            <RotateCcw className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Reset Defaults</span>
-          </button>
-          <button
-            onClick={handleSaveManualRules}
-            className="flex items-center space-x-1.5 px-4 py-1.5 rounded-full bg-slate-900 hover:bg-black text-white text-xs font-bold shadow-sm cursor-pointer transition-all"
-          >
-            <Save className="w-3.5 h-3.5" />
-            <span>Save Rules</span>
-          </button>
         </div>
       </div>
-
-      {/* Main Content Area */}
-      <main className="flex-1 space-y-4 overflow-y-auto pr-1">
-        {/* TWO UPLOAD ZONES ROW */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* UPLOAD ZONE 1: GLOBAL LETTERHEAD (PDF) */}
-          <div className="bg-white border border-slate-200/80 rounded-2xl p-5 space-y-4 shadow-xs flex flex-col justify-between">
-            <div>
-              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-                <div className="flex items-center space-x-2.5">
-                  <div className="w-7 h-7 rounded-lg bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-600 text-xs font-bold">
-                    1
-                  </div>
-                  <div>
-                    <h2 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-                      Global Letterhead (PDF)
-                    </h2>
-                    <p className="text-[11px] text-slate-500">
-                      Visual background template for the Live Quotation Preview
-                    </p>
-                  </div>
-                </div>
-
-                {globalLetterheadPdf && (
-                  <span className="text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full font-mono font-bold flex items-center space-x-1">
-                    <CheckCircle2 className="w-3 h-3" />
-                    <span>Active PDF</span>
-                  </span>
-                )}
-              </div>
-
-              {pdfUploadNotice && (
-                <div className="mt-3 p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center space-x-2">
-                  <CheckCircle2 className="w-4 h-4 flex-shrink-0 text-emerald-600" />
-                  <span>{pdfUploadNotice}</span>
-                </div>
-              )}
-
-              {/* Upload Dropzone */}
-              <input
-                type="file"
-                ref={pdfInputRef}
-                onChange={handlePdfUpload}
-                accept="application/pdf"
-                className="hidden"
-              />
-
-              <div
-                onClick={() => pdfInputRef.current?.click()}
-                className="mt-4 border-2 border-dashed border-slate-200 hover:border-[#FF4D6D] bg-slate-50/70 hover:bg-white rounded-xl p-6 flex flex-col items-center justify-center text-center cursor-pointer transition-all group"
-              >
-                <div className="w-12 h-12 rounded-full bg-white group-hover:bg-rose-50 border border-slate-200 group-hover:border-rose-200 flex items-center justify-center text-slate-500 group-hover:text-[#FF4D6D] transition-colors mb-2 shadow-xs">
-                  <Upload className="w-6 h-6" />
-                </div>
-                <div className="font-bold text-xs text-slate-800 group-hover:text-[#FF4D6D]">
-                  {letterheadFileName ? 'Replace Letterhead PDF' : 'Click to Upload Letterhead PDF'}
-                </div>
-                <p className="text-[11px] text-slate-500 mt-1 max-w-xs">
-                  Upload an official pre-printed blank letterhead PDF (A4 format). Saved into localStorage as visual background.
-                </p>
-              </div>
-
-              {letterheadFileName && (
-                <div className="mt-3 p-2.5 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between text-xs">
-                  <div className="flex items-center space-x-2 text-slate-800 truncate font-mono text-[11px]">
-                    <FileText className="w-4 h-4 text-[#FF4D6D] flex-shrink-0" />
-                    <span className="truncate font-semibold">{letterheadFileName}</span>
-                  </div>
-                  <div className="flex items-center space-x-1 flex-shrink-0">
-                    <button
-                      onClick={() => setShowPdfPreview(!showPdfPreview)}
-                      className="p-1.5 text-slate-600 hover:text-slate-900 rounded-lg hover:bg-slate-200/60"
-                      title="Preview PDF"
-                    >
-                      <Eye className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={handleRemovePdf}
-                      className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50"
-                      title="Remove Letterhead"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="pt-3 border-t border-slate-100 text-[11px] text-slate-400 font-mono">
-              * The uploaded letterhead is fixed at z-index: 0 on the live document preview.
-            </div>
-          </div>
-
-          {/* UPLOAD ZONE 2: QUOTATION FORMAT & T&CS (DOCX) */}
-          <div className="bg-white border border-slate-200/80 rounded-2xl p-5 space-y-4 shadow-xs flex flex-col justify-between">
-            <div>
-              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-                <div className="flex items-center space-x-2.5">
-                  <div className="w-7 h-7 rounded-lg bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600 text-xs font-bold">
-                    2
-                  </div>
-                  <div>
-                    <h2 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-                      Quotation Format &amp; T&amp;Cs (DOCX)
-                    </h2>
-                    <p className="text-[11px] text-slate-500">
-                      Extracts commercial terms &amp; conditions to enforce AI compliance
-                    </p>
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={handleLoadSampleTerms}
-                  className="text-xs text-[#FF4D6D] hover:underline font-semibold"
-                >
-                  Load Sample T&amp;Cs
-                </button>
-              </div>
-
-              {docxUploadNotice && (
-                <div className="mt-3 p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs flex items-center space-x-2">
-                  <CheckCircle2 className="w-4 h-4 flex-shrink-0 text-amber-600" />
-                  <span>{docxUploadNotice}</span>
-                </div>
-              )}
-
-              {/* Upload Dropzone */}
-              <input
-                type="file"
-                ref={docxInputRef}
-                onChange={handleDocxUpload}
-                accept=".docx"
-                className="hidden"
-              />
-
-              <div
-                onClick={() => docxInputRef.current?.click()}
-                className="mt-4 border-2 border-dashed border-slate-200 hover:border-emerald-500 bg-slate-50/70 hover:bg-white rounded-xl p-6 flex flex-col items-center justify-center text-center cursor-pointer transition-all group"
-              >
-                <div className="w-12 h-12 rounded-full bg-white group-hover:bg-emerald-50 border border-slate-200 group-hover:border-emerald-200 flex items-center justify-center text-slate-500 group-hover:text-emerald-600 transition-colors mb-2 shadow-xs">
-                  {isExtractingDocx ? (
-                    <Sparkles className="w-6 h-6 animate-spin text-emerald-600" />
-                  ) : (
-                    <FileCheck className="w-6 h-6" />
-                  )}
-                </div>
-                <div className="font-bold text-xs text-slate-800 group-hover:text-emerald-600">
-                  {isExtractingDocx ? 'Extracting Text with Mammoth...' : 'Click to Upload .DOCX Template'}
-                </div>
-                <p className="text-[11px] text-slate-500 mt-1 max-w-xs">
-                  Upload tender terms (.docx). Extracts raw text &amp; standard T&amp;Cs and saves into master_template_rules.
-                </p>
-              </div>
-            </div>
-
-            <div className="pt-3 border-t border-slate-100 text-[11px] text-slate-400 font-mono">
-              * Extracted rules are fed into Qri AI prompt to trigger contextual compliance warnings.
-            </div>
-          </div>
-        </div>
-
-        {/* SECTION 2: MASTER RULES INSPECTOR & LIVE EDITOR */}
-        <div className="bg-white border border-slate-200/80 rounded-2xl p-5 space-y-4 shadow-xs">
-          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-            <div className="flex items-center space-x-2">
-              <ShieldCheck className="w-4 h-4 text-emerald-600" />
-              <h2 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-                Active Master Template Rules (`master_template_rules`)
-              </h2>
-            </div>
-            <div className="text-[11px] text-slate-400 font-mono">
-              Directly injected into Qri AI Gemini System Prompt
-            </div>
-          </div>
-
-          {/* Explanation Alert */}
-          <div className="p-3.5 bg-amber-50/80 border border-amber-200 rounded-xl text-xs text-amber-900 flex items-start space-x-3">
-            <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
-            <div className="space-y-1 text-xs leading-relaxed">
-              <span className="font-bold text-amber-950">Qri AI Commercial Governance Active:</span>
-              <p className="text-amber-900">
-                When a user asks for non-standard terms (e.g. <em>&quot;Give 90 days credit&quot;</em>, <em>&quot;12 weeks delivery&quot;</em>, or <em>&quot;0% margin&quot;</em>), Qri will update the live template as requested, but will <strong>automatically trigger a specific compliance warning</strong> in the chat journey log notifying the procurement staff of the policy deviation.
-              </p>
-            </div>
-          </div>
-
-          {/* Editable Textarea */}
-          <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1.5 font-mono">
-              Extracted Rules &amp; Standard Clauses (Editable):
-            </label>
-            <textarea
-              rows={10}
-              value={rulesEditorText}
-              onChange={(e) => setRulesEditorText(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3.5 text-xs font-mono text-slate-800 leading-relaxed focus:outline-none focus:border-[#FF4D6D] focus:bg-white resize-y shadow-inner"
-              placeholder="Paste or extract master template rules here..."
-            />
-          </div>
-        </div>
-      </main>
-
-      {/* PDF Preview Modal */}
-      {showPdfPreview && globalLetterheadPdf && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
-          <div className="bg-white border border-slate-200 w-full max-w-4xl h-[85vh] rounded-2xl overflow-hidden flex flex-col shadow-2xl">
-            <div className="p-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between text-xs">
-              <span className="font-bold text-slate-900">Letterhead Preview: {letterheadFileName}</span>
-              <button
-                onClick={() => setShowPdfPreview(false)}
-                className="text-slate-400 hover:text-slate-700 font-bold text-sm px-2"
-              >
-                ✕
-              </button>
-            </div>
-            <div className="flex-1 bg-slate-100">
-              <iframe
-                src={`${globalLetterheadPdf}#toolbar=0`}
-                className="w-full h-full border-0"
-                title="Letterhead PDF Preview"
-              />
-            </div>
-          </div>
+      <div className="text-slate-400 italic mb-3">— quotation details and items are filled in for each quote —</div>
+      <div className="mb-3">{t.taxStatement}</div>
+      {t.terms.length > 0 && (
+        <>
+          <div className="font-bold mb-1">Terms &amp; Conditions</div>
+          <ol className="list-decimal pl-4 space-y-0.5 mb-3">
+            {t.terms.map((x, i) => <li key={i}>{x}</li>)}
+          </ol>
+        </>
+      )}
+      {(t.signatory.name || t.signatory.company) && (
+        <div className="mt-4">
+          <div>Regards,</div>
+          {t.signatory.company && <div className="font-semibold">For {t.signatory.company}</div>}
+          <div className="mt-5 font-semibold">{t.signatory.name}</div>
+          <div className="text-slate-500">{t.signatory.designation}</div>
         </div>
       )}
+      {t.letterhead.footerLines.length > 0 && (
+        <div className="border-t border-slate-200 mt-4 pt-2 text-slate-500">
+          {t.letterhead.footerLines.map((l, i) => <div key={i}>{l}</div>)}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default function TemplateSettingsPage() {
+  const { officeTemplate, publishTemplate, isAdmin } = useApp();
+
+  const [draft, setDraft] = useState<TemplateDraft | null>(null);
+  const [dirty, setDirty] = useState(false);
+  const [findings, setFindings] = useState<string[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [result, setResult] = useState<{ savedToCloud: boolean; version: number } | null>(null);
+
+  const docxRef = useRef<HTMLInputElement>(null);
+
+  // Start from the published template, unless the admin is mid-edit.
+  useEffect(() => {
+    if (!dirty && officeTemplate) setDraft(toDraft(officeTemplate));
+  }, [officeTemplate, dirty]);
+
+  const edit = (fn: (d: TemplateDraft) => TemplateDraft) => {
+    setDraft((d) => fn(d ?? blankDraft()));
+    setDirty(true);
+    setResult(null);
+  };
+
+  const onDocx = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setError(null);
+    if (!file.name.toLowerCase().endsWith('.docx')) {
+      setError('Please choose a Word file that ends in .docx. (Old .doc files: open them in Word and "Save As" .docx first.)');
+      return;
+    }
+    setBusy(true);
+    try {
+      const out = await extractOfficeTemplate(await file.arrayBuffer(), file.name);
+      // keep the limits the admin already set
+      setDraft((prev) => ({ ...out.draft, rules: prev?.rules ?? out.draft.rules }));
+      setFindings(out.findings);
+      setDirty(true);
+      setResult(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'That file could not be read.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const num = (v: string): number | null => {
+    if (v.trim() === '') return null;
+    const n = Number(v);
+    return Number.isFinite(n) && n >= 0 ? n : null;
+  };
+
+  const problems: string[] = [];
+  if (draft) {
+    const hasLetterhead = draft.letterhead.lines.length > 0 || !!draft.letterhead.logoDataUrl;
+    if (!hasLetterhead) problems.push('Add the company letterhead (company name and address, or a logo).');
+    if (!draft.signatory.name.trim()) problems.push('Add the name of the person who signs quotations.');
+    const r = draft.rules;
+    if (r.minMarginPct !== null && r.defaultMarginPct !== null && r.defaultMarginPct < r.minMarginPct) {
+      problems.push('The default margin is lower than the minimum margin.');
+    }
+    if (r.maxValidityDays !== null && r.defaultValidityDays !== null && r.defaultValidityDays > r.maxValidityDays) {
+      problems.push('The default validity is longer than the maximum validity.');
+    }
+  }
+
+  const onPublish = async () => {
+    if (!draft || problems.length) return;
+    setBusy(true);
+    setError(null);
+    const res = await publishTemplate(draft);
+    setBusy(false);
+    if (!res.ok) {
+      setError('Only an admin can publish the template.');
+      return;
+    }
+    setDirty(false);
+    setResult({ savedToCloud: res.savedToCloud, version: (officeTemplate?.version ?? 0) + 1 });
+  };
+
+  // ── Everyone except admins: read-only view ──────────────────────────────────
+  if (!isAdmin) {
+    return (
+      <div className="max-w-3xl mx-auto p-4 sm:p-8 overflow-y-auto h-full select-text">
+        <h1 className="text-xl font-bold text-slate-900 flex items-center gap-2"><FileCog className="w-5 h-5 text-[#FF4D6D]" /> Quote Template</h1>
+        <p className="text-sm text-slate-600 mt-1 mb-5 flex items-center gap-1.5"><Lock className="w-3.5 h-3.5" /> Set by your admin. All quotations use it exactly as it is.</p>
+        {officeTemplate ? (
+          <>
+            <p className="text-xs text-slate-500 mb-3">Version {officeTemplate.version} · published by {officeTemplate.publishedBy} on {new Date(officeTemplate.publishedAt).toLocaleDateString()}</p>
+            <TemplatePreview t={toDraft(officeTemplate)} />
+          </>
+        ) : (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">The template has not been set up yet. Please ask an admin to set it up.</div>
+        )}
+      </div>
+    );
+  }
+
+  // ── Admin ───────────────────────────────────────────────────────────────────
+  const d = draft;
+  const label = 'block text-xs font-semibold text-slate-700 mb-1';
+  const field = 'w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 bg-white focus:outline-none focus:border-[#FF4D6D]';
+
+  return (
+    <div className="h-full overflow-y-auto select-text">
+      <div className="max-w-6xl mx-auto p-4 sm:p-8 grid lg:grid-cols-[1fr_380px] gap-6">
+        <div className="space-y-6 min-w-0">
+          <div>
+            <h1 className="text-xl font-bold text-slate-900 flex items-center gap-2"><FileCog className="w-5 h-5 text-[#FF4D6D]" /> Quote Template</h1>
+            <p className="text-sm text-slate-600 mt-1">
+              Set this up once. Employees can only fill in the quote details. They cannot change the letterhead or terms.
+              {officeTemplate && <> Currently published: <b>version {officeTemplate.version}</b> by {officeTemplate.publishedBy}.</>}
+            </p>
+          </div>
+
+          {/* Step 1 */}
+          <section className="bg-white border border-slate-200 rounded-2xl p-5">
+            <h2 className="font-bold text-slate-900 text-sm mb-1">Step 1 · Upload a sample quotation</h2>
+            <p className="text-xs text-slate-600 mb-3">
+              Choose one of your real, approved quotations as a Word file (.docx). We copy the letterhead, terms and signature from it word for word. We never write any text ourselves.
+            </p>
+            <input ref={docxRef} type="file" accept=".docx" onChange={onDocx} className="hidden" />
+            <div className="flex flex-wrap gap-2">
+              <button onClick={() => docxRef.current?.click()} disabled={busy} className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-slate-900 hover:bg-black text-white text-sm font-semibold disabled:opacity-50 cursor-pointer">
+                <Upload className="w-4 h-4" /> {busy ? 'Reading…' : d ? 'Upload a different sample' : 'Choose Word file'}
+              </button>
+              {!d && (
+                <button onClick={() => { setDraft(blankDraft()); setDirty(true); }} className="px-4 py-2.5 rounded-full border border-slate-300 text-sm font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer">
+                  I will type it in myself
+                </button>
+              )}
+            </div>
+            {d?.sourceDocName && <p className="text-xs text-slate-500 mt-2 flex items-center gap-1"><FileText className="w-3.5 h-3.5" /> Copied from {d.sourceDocName}</p>}
+            {findings.length > 0 && (
+              <ul className="mt-3 space-y-1 text-xs text-slate-700">
+                {findings.map((f, i) => (
+                  <li key={i} className="flex gap-1.5"><Info className="w-3.5 h-3.5 mt-0.5 text-slate-400 flex-shrink-0" />{f}</li>
+                ))}
+              </ul>
+            )}
+          </section>
+
+          {error && <div className="rounded-xl border border-red-200 bg-red-50 text-red-800 text-sm p-3 flex gap-2"><AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />{error}</div>}
+
+          {d && (
+            <>
+              {/* Step 2 */}
+              <section className="bg-white border border-slate-200 rounded-2xl p-5 space-y-4">
+                <h2 className="font-bold text-slate-900 text-sm">Step 2 · Check what was copied</h2>
+
+                <div>
+                  <label className={label}>Letterhead (one line each — company name first)</label>
+                  <textarea rows={3} className={field} value={d.letterhead.lines.join('\n')} onChange={(e) => edit((x) => ({ ...x, letterhead: { ...x.letterhead, lines: lines(e.target.value) } }))} />
+                  <div className="mt-2 flex flex-wrap items-center gap-3 text-xs">
+                    {d.letterhead.logoDataUrl ? (
+                      <>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={d.letterhead.logoDataUrl} alt="Logo" className="h-8 w-auto border border-slate-200 rounded" />
+                        <button onClick={() => edit((x) => ({ ...x, letterhead: { ...x.letterhead, logoDataUrl: null } }))} className="text-red-600 font-semibold cursor-pointer">Remove logo</button>
+                      </>
+                    ) : <span className="text-slate-500">No logo copied.</span>}
+                  </div>
+                </div>
+
+                <div>
+                  <label className={label}>Footer lines (optional)</label>
+                  <textarea rows={2} className={field} value={d.letterhead.footerLines.join('\n')} onChange={(e) => edit((x) => ({ ...x, letterhead: { ...x.letterhead, footerLines: lines(e.target.value) } }))} />
+                </div>
+
+                <div>
+                  <label className={label}>Standard terms &amp; conditions (printed on every quote, in this order)</label>
+                  <div className="space-y-2">
+                    {d.terms.map((t, i) => (
+                      <div key={i} className="flex gap-2 items-start">
+                        <span className="text-xs text-slate-400 w-5 pt-2.5 text-right">{i + 1}.</span>
+                        <textarea rows={2} className={field} value={t} onChange={(e) => edit((x) => ({ ...x, terms: x.terms.map((y, j) => (j === i ? e.target.value : y)) }))} />
+                        <button onClick={() => edit((x) => ({ ...x, terms: x.terms.filter((_, j) => j !== i) }))} className="p-2 text-slate-400 hover:text-red-600 cursor-pointer" title="Remove this clause"><Trash2 className="w-4 h-4" /></button>
+                      </div>
+                    ))}
+                    <button onClick={() => edit((x) => ({ ...x, terms: [...x.terms, ''] }))} className="inline-flex items-center gap-1 text-xs font-semibold text-slate-700 hover:text-black cursor-pointer"><Plus className="w-3.5 h-3.5" /> Add a clause</button>
+                  </div>
+                </div>
+
+                <div className="grid sm:grid-cols-3 gap-3">
+                  <div><label className={label}>Signing company</label><input className={field} value={d.signatory.company} onChange={(e) => edit((x) => ({ ...x, signatory: { ...x.signatory, company: e.target.value } }))} /></div>
+                  <div><label className={label}>Signatory name</label><input className={field} value={d.signatory.name} onChange={(e) => edit((x) => ({ ...x, signatory: { ...x.signatory, name: e.target.value } }))} /></div>
+                  <div><label className={label}>Designation</label><input className={field} value={d.signatory.designation} onChange={(e) => edit((x) => ({ ...x, signatory: { ...x.signatory, designation: e.target.value } }))} /></div>
+                </div>
+
+                <div className="grid sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className={label}>Quotation number format (shown as a hint to employees)</label>
+                    <input className={field} value={d.refHint} placeholder="e.g. the sample's own “Ref:” line" onChange={(e) => edit((x) => ({ ...x, refHint: e.target.value }))} />
+                  </div>
+                  <div>
+                    <label className={label}>Tax statement printed under the total</label>
+                    <input className={field} value={d.taxStatement} onChange={(e) => edit((x) => ({ ...x, taxStatement: e.target.value }))} />
+                  </div>
+                </div>
+              </section>
+
+              {/* Optional rules */}
+              <section className="bg-white border border-slate-200 rounded-2xl p-5">
+                <h2 className="font-bold text-slate-900 text-sm mb-1">Company limits (optional)</h2>
+                <p className="text-xs text-slate-600 mb-3">Leave a box empty if there is no such rule. Nothing is assumed. Employees get a clear warning when a quote goes outside a limit you set.</p>
+                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {([
+                    ['defaultMarginPct', 'Usual margin (%)', 'Used when an employee does not say a margin'],
+                    ['minMarginPct', 'Lowest allowed margin (%)', 'Warn below this'],
+                    ['defaultValidityDays', 'Usual validity (days)', 'Pre-filled on new quotes'],
+                    ['maxValidityDays', 'Longest validity (days)', 'Warn above this'],
+                    ['maxCreditDays', 'Longest credit (days)', 'Warn if payment terms mention more'],
+                  ] as [keyof TemplateRules, string, string][]).map(([k, t, hint]) => (
+                    <div key={k}>
+                      <label className={label}>{t}</label>
+                      <input type="number" min={0} className={field} value={d.rules[k] ?? ''} onChange={(e) => edit((x) => ({ ...x, rules: { ...x.rules, [k]: num(e.target.value) } }))} />
+                      <div className="text-[11px] text-slate-500 mt-0.5">{hint}</div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+
+              {/* Step 3 */}
+              <section className="bg-white border border-slate-200 rounded-2xl p-5">
+                <h2 className="font-bold text-slate-900 text-sm mb-2">Step 3 · Publish</h2>
+                {problems.length > 0 && (
+                  <ul className="mb-3 space-y-1 text-xs text-red-700">
+                    {problems.map((p, i) => <li key={i} className="flex gap-1.5"><AlertTriangle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />{p}</li>)}
+                  </ul>
+                )}
+                {d.terms.some((t) => !t.trim()) && <p className="text-xs text-amber-700 mb-3">Some terms are empty. Empty clauses are skipped.</p>}
+                <button onClick={onPublish} disabled={busy || problems.length > 0 || (!dirty && !!officeTemplate)} className="px-5 py-2.5 rounded-full bg-[#FF4D6D] hover:bg-[#FA3B5E] text-white text-sm font-bold disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer">
+                  {officeTemplate ? `Publish as version ${officeTemplate.version + 1}` : 'Publish template'}
+                </button>
+                {!dirty && officeTemplate && !result && <span className="text-xs text-slate-500 ml-3">No changes to publish.</span>}
+                {result && (
+                  <div className="mt-3 text-sm">
+                    <div className="text-emerald-700 flex items-center gap-1.5 font-semibold"><CheckCircle2 className="w-4 h-4" /> Published as version {result.version}. New quotes use it now.</div>
+                    {!result.savedToCloud && (
+                      <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 text-amber-900 text-xs p-2.5">
+                        It is saved on this computer only. The shared database did not accept it, so other computers will not see it yet.
+                      </div>
+                    )}
+                  </div>
+                )}
+              </section>
+            </>
+          )}
+        </div>
+
+        {/* Live preview */}
+        <aside className="lg:sticky lg:top-6 self-start">
+          <div className="text-xs font-semibold text-slate-500 mb-2">What employees will get</div>
+          {d ? <TemplatePreview t={d} /> : <div className="text-xs text-slate-500 border border-dashed border-slate-300 rounded-xl p-6 text-center">Upload a sample to see the preview.</div>}
+        </aside>
+      </div>
     </div>
   );
 }

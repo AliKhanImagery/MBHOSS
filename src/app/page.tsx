@@ -23,14 +23,16 @@ import {
   Clock,
   Briefcase,
 } from 'lucide-react';
-import { useApp, DEFAULT_TEMPLATE } from '@/context/AppContext';
+import { useApp } from '@/context/AppContext';
 
 export default function MainDashboardPage() {
   const router = useRouter();
   const {
     currentUser,
     templateState,
-    setTemplateState,
+    startNewQuote,
+    officeTemplate,
+    isAdmin,
     activeCases,
     dataBank,
   } = useApp();
@@ -163,7 +165,7 @@ export default function MainDashboardPage() {
                     <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-rose-50 text-[#FF4D6D] border border-rose-200 font-bold font-mono">
                       CORE AI ENGINE
                     </span>
-                    <span className="text-xs text-slate-400 font-medium">Interactive Canvas &amp; Co-Pilot</span>
+                    <span className="text-xs text-slate-400 font-medium">Live A4 preview</span>
                   </div>
                   <h2 className="text-xl font-bold text-slate-900 mt-1">
                     Quotation Maker Agent
@@ -172,15 +174,30 @@ export default function MainDashboardPage() {
               </div>
 
               <div className="text-right">
-                <span className="text-xs font-mono font-bold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-md border border-slate-200">
-                  Ref: {templateState.quoteRef}
-                </span>
+                {templateState.quoteRef && (
+                  <span className="text-xs font-mono font-bold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-md border border-slate-200">
+                    Ref: {templateState.quoteRef}
+                  </span>
+                )}
               </div>
             </div>
 
             <p className="text-sm text-slate-600 leading-relaxed mb-4">
-              Draft comprehensive industrial proposals with automated commercial tax gross-ups, master compliance governance, and instant live A4 canvas formatting.
+              Prepare quotations on your company letterhead and standard terms. Tell the assistant what to add and it does the pricing.
             </p>
+
+            {!officeTemplate && (
+              <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-2.5 text-xs text-amber-900">
+                {isAdmin ? (
+                  <>
+                    The quotation template has not been set up yet.{' '}
+                    <Link href="/settings/templates" className="font-bold underline">Set it up now</Link>
+                  </>
+                ) : (
+                  'The quotation template has not been set up yet. Please ask an admin to set it up.'
+                )}
+              </div>
+            )}
 
             {/* Inline Quick Prompt Input */}
             <div className="relative mb-3">
@@ -191,34 +208,18 @@ export default function MainDashboardPage() {
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') handleLaunchWithPrompt();
                 }}
-                placeholder="Instruct Qri AI: e.g. 'Add 5 relays for Engro with 15% margin'..."
+                placeholder="Tell the assistant what you need, e.g. 'Client is Acme Foods, payment 30 days'"
                 className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-4 pr-12 py-3 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#FF4D6D] focus:bg-white font-sans transition-all"
               />
               <button
                 onClick={() => handleLaunchWithPrompt()}
                 className="absolute right-2 top-2 p-2 bg-[#FF4D6D] hover:bg-[#FA3B5E] text-white rounded-lg shadow-2xs cursor-pointer transition-all active:scale-95"
-                title="Send instruction to Qri AI"
+                title="Send to the quote assistant"
               >
                 <Send className="w-3.5 h-3.5" />
               </button>
             </div>
 
-            {/* Quick Prompt Shortcut Chips */}
-            <div className="flex flex-wrap items-center gap-1.5 mb-4">
-              {[
-                'Add 5 Siemens 24V Relays for Engro with 15% margin',
-                'Apply 18% GST to quote',
-                'Give 90 days credit payment terms',
-              ].map((chip, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => handleLaunchWithPrompt(chip)}
-                  className="px-2.5 py-1 rounded-full text-[11px] bg-slate-100 hover:bg-slate-200/80 text-slate-700 border border-slate-200 transition-colors cursor-pointer font-medium"
-                >
-                  + {chip}
-                </button>
-              ))}
-            </div>
           </div>
 
           {/* Card 1 CTA Buttons */}
@@ -228,13 +229,13 @@ export default function MainDashboardPage() {
               className="flex-1 py-3 px-5 rounded-full bg-slate-900 hover:bg-black text-white text-xs sm:text-sm font-bold shadow-xs flex items-center justify-center space-x-2 transition-all cursor-pointer"
             >
               <Sparkles className="w-4 h-4 text-[#FF4D6D]" />
-              <span>Open Quotation Agent</span>
+              <span>Open Quotation Assistant</span>
               <ArrowRight className="w-4 h-4 text-slate-400" />
             </Link>
 
             <button
               onClick={() => {
-                setTemplateState(DEFAULT_TEMPLATE);
+                startNewQuote();
                 router.push('/agent/quotation');
               }}
               className="py-3 px-4 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs sm:text-sm font-semibold transition-colors cursor-pointer border border-slate-200 flex items-center justify-center space-x-1.5"
