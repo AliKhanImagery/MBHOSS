@@ -3,10 +3,11 @@
 import React, { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { AlertTriangle, CheckCircle2, Download, FilePlus2, Plus, Save, Send, Trash2, Undo2, XCircle } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, ChevronsRight, Download, FilePlus2, MessageSquare, Plus, Save, Send, Trash2, Undo2, XCircle } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { checkQuote, formatPKR } from '@/lib/quote-engine';
 import { authHeaders } from '@/lib/supabase';
+import { TopBarActions } from '@/components/TopBarActions';
 import type { QuotationTemplate } from '@/types';
 
 interface AssistantResponse {
@@ -43,7 +44,17 @@ function QuotationContent() {
   const [thinking, setThinking] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [tab, setTab] = useState<'quote' | 'assistant'>('quote');
+  const [chatOpen, setChatOpen] = useState(true);
   const feedEnd = useRef<HTMLDivElement>(null);
+
+  // remember whether the assistant panel was left open or collapsed
+  useEffect(() => {
+    try { if (localStorage.getItem('qri_chat_open') === '0') setChatOpen(false); } catch { /* ignore */ }
+  }, []);
+  const setChat = (open: boolean) => {
+    setChatOpen(open);
+    try { localStorage.setItem('qri_chat_open', open ? '1' : '0'); } catch { /* ignore */ }
+  };
 
   const canSeeCosts = !!currentUser?.features.marginOverride;
   const canDownload = !!currentUser?.features.directPdfExport;
@@ -139,16 +150,16 @@ function QuotationContent() {
 
       {/* ═════ LEFT: the document ═════ */}
       <div className={`${tab === 'quote' ? 'flex' : 'hidden'} lg:flex flex-1 min-w-0 flex-col`}>
-        <div className="flex flex-wrap items-center gap-2 px-4 py-2.5 bg-white border-b border-slate-200 print:hidden">
-          <button onClick={() => { if (q.lineItems.length === 0 || window.confirm('Start a new quotation? Anything not saved in this one will be lost.')) startNewQuote(); }} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-slate-300 text-xs font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer"><FilePlus2 className="w-3.5 h-3.5" /> New quotation</button>
-          <button onClick={undoQuote} disabled={!canUndo} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-slate-300 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40 cursor-pointer"><Undo2 className="w-3.5 h-3.5" /> Undo</button>
+        <TopBarActions>
+          <button onClick={() => { if (q.lineItems.length === 0 || window.confirm('Start a new quotation? Anything not saved in this one will be lost.')) startNewQuote(); }} title="New quotation" className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-full border border-slate-300 text-xs font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer"><FilePlus2 className="w-3.5 h-3.5" /> <span className="hidden sm:inline">New quotation</span></button>
+          <button onClick={undoQuote} disabled={!canUndo} title="Undo" className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-full border border-slate-300 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40 cursor-pointer"><Undo2 className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Undo</span></button>
           <div className="flex-1" />
           {toast && <span className="text-xs font-semibold text-slate-700">{toast}</span>}
-          <button onClick={() => (saveCurrentCase('Draft') ? flash('Saved') : flash('Add the quotation number first'))} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-100 hover:bg-slate-200 text-xs font-semibold text-slate-800 cursor-pointer"><Save className="w-3.5 h-3.5" /> Save</button>
+          <button onClick={() => (saveCurrentCase('Draft') ? flash('Saved') : flash('Add the quotation number first'))} title="Save" className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-full bg-slate-100 hover:bg-slate-200 text-xs font-semibold text-slate-800 cursor-pointer"><Save className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Save</span></button>
           {canDownload && (
-            <button onClick={() => window.print()} disabled={blocking.length > 0} title={blocking.length ? 'Fix the red items first' : 'In the print window, choose “Save as PDF”'} className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-slate-900 hover:bg-black text-white text-xs font-bold disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"><Download className="w-3.5 h-3.5" /> Download PDF</button>
+            <button onClick={() => window.print()} disabled={blocking.length > 0} title={blocking.length ? 'Fix the red items first' : 'In the print window, choose “Save as PDF”'} className="inline-flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 rounded-full bg-slate-900 hover:bg-black text-white text-xs font-bold disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"><Download className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Download PDF</span></button>
           )}
-        </div>
+        </TopBarActions>
 
         <div className="flex-1 overflow-auto p-3 sm:p-6 select-text">
           {q.templateVersion !== undefined && q.templateVersion !== t.version && (
@@ -296,9 +307,12 @@ function QuotationContent() {
       </div>
 
       {/* ═════ RIGHT: checks + assistant ═════ */}
-      <aside className={`${tab === 'assistant' ? 'flex' : 'hidden'} lg:flex w-full lg:w-[400px] flex-shrink-0 flex-col bg-white border-l border-slate-200 min-h-0 print:hidden`}>
+      <aside className={`${tab === 'assistant' ? 'flex' : 'hidden'} ${chatOpen ? 'lg:flex' : 'lg:hidden'} w-full lg:w-[400px] flex-shrink-0 flex-col bg-white border-l border-slate-200 min-h-0 print:hidden`}>
         <div className="p-4 border-b border-slate-200">
-          <div className="text-xs font-bold text-slate-700 mb-2">Before you download</div>
+          <div className="flex items-center justify-between mb-2">
+            <div className="text-xs font-bold text-slate-700">Before you download</div>
+            <button onClick={() => setChat(false)} className="hidden lg:inline-flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-semibold text-slate-500 hover:bg-slate-100 cursor-pointer" title="Collapse the assistant"><ChevronsRight className="w-3.5 h-3.5" /> Hide</button>
+          </div>
           {checks.length === 0 ? (
             <div className="flex items-center gap-2 text-sm text-emerald-700 font-semibold"><CheckCircle2 className="w-4 h-4" /> Everything looks complete.</div>
           ) : (
@@ -353,6 +367,20 @@ function QuotationContent() {
           <button type="submit" disabled={thinking || !input.trim()} className="p-3 rounded-xl bg-[#FF4D6D] hover:bg-[#FA3B5E] text-white disabled:opacity-40 cursor-pointer" title="Send"><Send className="w-4 h-4" /></button>
         </form>
       </aside>
+
+      {/* Collapsed: small round chip to bring the assistant back (large screens) */}
+      {!chatOpen && (
+        <button
+          onClick={() => setChat(true)}
+          className="hidden lg:flex fixed bottom-6 right-6 z-30 w-14 h-14 rounded-full bg-[#FF4D6D] hover:bg-[#FA3B5E] text-white shadow-lg items-center justify-center cursor-pointer print:hidden"
+          title="Open the assistant"
+        >
+          <MessageSquare className="w-6 h-6" />
+          {blocking.length > 0 && (
+            <span className="absolute -top-1 -right-1 min-w-5 h-5 px-1 rounded-full bg-slate-900 text-white text-[10px] font-bold flex items-center justify-center">{blocking.length}</span>
+          )}
+        </button>
+      )}
     </div>
   );
 }

@@ -17,6 +17,7 @@ import {
   Bell,
   RefreshCw,
   Send,
+  ArrowLeft,
 } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { AUTH_ENABLED } from '@/lib/auth-config';
@@ -25,7 +26,7 @@ import { authLinkType } from '@/lib/supabase';
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { currentUser, logout, activeCases, cloudStatus, refreshFromCloud, authLoading } = useApp();
+  const { currentUser, logout, cloudStatus, refreshFromCloud, authLoading } = useApp();
 
   // Invite and password-reset links must land on the set-password screen, not the app
   useEffect(() => {
@@ -95,12 +96,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     },
   ];
 
-  const currentSection = navItems.find((n) => n.active) || navItems[0];
-
   const handleLogout = () => {
     logout();
     router.push('/login');
   };
+
+  const goBack = () => {
+    if (typeof window !== 'undefined' && window.history.length > 1) router.back();
+    else router.push('/');
+  };
+
+  const syncDot =
+    cloudStatus === 'connected' ? 'bg-emerald-500' : cloudStatus === 'syncing' ? 'bg-amber-500 animate-pulse' : 'bg-slate-400';
+  const syncTitle =
+    cloudStatus === 'connected' ? 'Saved to the cloud. Click to sync again.' : cloudStatus === 'syncing' ? 'Syncing…' : 'Offline: working from this computer. Click to try syncing.';
+  const isHome = pathname === '/';
 
   return (
     <div className="flex flex-col md:flex-row h-[100dvh] w-screen overflow-hidden bg-[#F4F5F7] text-slate-900 select-none">
@@ -155,8 +165,28 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </nav>
         </div>
 
-        {/* Bottom: Sign Out */}
-        <div className="flex flex-col items-center w-full px-2">
+        {/* Bottom: sync, notifications, profile, sign out */}
+        <div className="flex flex-col items-center w-full px-2 space-y-2.5">
+          <button
+            onClick={() => refreshFromCloud()}
+            className="relative w-10 h-10 rounded-2xl flex items-center justify-center text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
+            title={syncTitle}
+          >
+            <RefreshCw className={`w-[18px] h-[18px] ${cloudStatus === 'syncing' ? 'animate-spin text-amber-600' : ''}`} />
+            <span className={`absolute top-1.5 right-1.5 w-2.5 h-2.5 rounded-full border-2 border-white ${syncDot}`} />
+          </button>
+          <button
+            className="w-10 h-10 rounded-2xl flex items-center justify-center text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
+            title="Notifications"
+          >
+            <Bell className="w-[18px] h-[18px]" />
+          </button>
+          <div
+            className="w-10 h-10 rounded-full bg-slate-900 text-white font-bold text-xs flex items-center justify-center cursor-default"
+            title={`${currentUser?.name ?? ''}${currentUser?.role ? ' · ' + currentUser.role : ''}`}
+          >
+            {currentUser?.avatar || (currentUser?.name ?? '?').slice(0, 2).toUpperCase()}
+          </div>
           <button
             onClick={handleLogout}
             className="w-10 h-10 rounded-2xl flex items-center justify-center text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
@@ -171,74 +201,27 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           2. MAIN WORKSPACE (Full Screen Space, Edge-to-Edge)
       ========================================================================= */}
       <div className="flex-1 flex flex-col h-[calc(100dvh-3.5rem)] md:h-[100dvh] overflow-hidden bg-[#F4F5F7]">
-        {/* Minimalist Top App Bar (ZERO Navigation Repetition) */}
-        <header className="h-14 sm:h-16 px-4 sm:px-8 bg-white border-b border-slate-200/80 flex items-center justify-between flex-shrink-0 z-20">
-          {/* Left: Section Title in Helvetica */}
-          <div className="flex items-center space-x-3">
-            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 font-sans">
-              {currentSection.label}
-            </h1>
-            <span className="hidden sm:inline-flex items-center space-x-1.5 text-xs font-mono font-medium pl-2 border-l border-slate-200">
-              <span
-                className={`w-2 h-2 rounded-full ${
-                  cloudStatus === 'connected'
-                    ? 'bg-emerald-500 shadow-xs shadow-emerald-500/50'
-                    : cloudStatus === 'syncing'
-                    ? 'bg-amber-500 animate-ping'
-                    : 'bg-slate-400'
-                }`}
-              ></span>
-              <span className={cloudStatus === 'connected' ? 'text-emerald-700 font-bold' : 'text-slate-500 font-semibold'}>
-                {cloudStatus === 'connected'
-                  ? 'Supabase Cloud (ap-south-1)'
-                  : cloudStatus === 'syncing'
-                  ? 'Syncing Cloud...'
-                  : 'Offline • LocalStore'}
-              </span>
-            </span>
-          </div>
-
-          {/* Right Controls: Live Pipeline Metric, Quick Search, Notification, User Pill */}
-          <div className="flex items-center space-x-3">
-            {/* Live Pipeline Metric Pill in Header */}
-            <div className="hidden lg:flex items-center space-x-2 bg-slate-50 border border-slate-200/80 px-3.5 py-1.5 rounded-full text-xs font-mono shadow-2xs">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-              <span className="text-slate-500 font-medium">Pipeline:</span>
-              <span className="font-bold text-slate-900">
-                Rs. {new Intl.NumberFormat('en-PK').format(activeCases.reduce((sum, c) => sum + (c.totalPKR || 0), 0))}
-              </span>
-            </div>
-
+        {/* One slim top bar: back button on the left, the page's own buttons beside it.
+            On the home page it only shows on phones (profile and sync live in the left rail on larger screens). */}
+        <header className={`h-11 px-3 sm:px-4 bg-white border-b border-slate-200/80 items-center gap-2 flex-shrink-0 z-20 print:hidden ${isHome ? 'flex md:hidden' : 'flex'}`}>
+          {!isHome && (
             <button
-              onClick={() => refreshFromCloud()}
-              className="hidden sm:flex items-center space-x-1.5 px-3 py-1.5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold border border-slate-200 transition-colors cursor-pointer active:scale-95"
-              title="Sync with Supabase"
+              onClick={goBack}
+              className="inline-flex items-center gap-1.5 pl-2 pr-3 py-1.5 rounded-full text-xs font-semibold text-slate-700 hover:bg-slate-100 cursor-pointer flex-shrink-0"
+              title="Go back"
             >
-              <RefreshCw className={`w-3.5 h-3.5 ${cloudStatus === 'syncing' ? 'animate-spin text-amber-600' : ''}`} />
-              <span>{cloudStatus === 'syncing' ? 'Syncing...' : 'Sync Cloud'}</span>
+              <ArrowLeft className="w-4 h-4" /> <span className="hidden sm:inline">Back</span>
             </button>
-
-            {/* Notification Bell */}
-            <button
-              className="w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-200 flex items-center justify-center transition-colors"
-              title="Notifications"
-            >
-              <Bell className="w-4 h-4" />
+          )}
+          <div id="topbar-actions" className="flex flex-1 min-w-0 flex-wrap items-center gap-2 justify-end sm:justify-start" />
+          {/* Phones only: sync and profile (the left rail is hidden on phones) */}
+          <div className="md:hidden flex items-center gap-2 flex-shrink-0 ml-auto">
+            <button onClick={() => refreshFromCloud()} className="relative w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center" title={syncTitle}>
+              <RefreshCw className={`w-3.5 h-3.5 text-slate-600 ${cloudStatus === 'syncing' ? 'animate-spin' : ''}`} />
+              <span className={`absolute top-0 right-0 w-2 h-2 rounded-full ${syncDot}`} />
             </button>
-
-            {/* User Profile Pill */}
-            <div className="flex items-center space-x-2.5 bg-slate-100 border border-slate-200 pl-1.5 pr-3 py-1 rounded-full shadow-xs">
-              <div className="w-7 h-7 rounded-full bg-slate-900 text-white font-bold text-xs flex items-center justify-center">
-                {currentUser?.avatar || 'AK'}
-              </div>
-              <div className="hidden sm:flex flex-col text-left">
-                <span className="text-xs font-bold text-slate-900 leading-tight">
-                  {currentUser?.name || 'Ali Khan'}
-                </span>
-                <span className="text-[10px] text-slate-500 font-medium leading-none">
-                  {currentUser?.role || 'Super Admin'}
-                </span>
-              </div>
+            <div className="w-8 h-8 rounded-full bg-slate-900 text-white font-bold text-[11px] flex items-center justify-center" title={`${currentUser?.name ?? ''} · ${currentUser?.role ?? ''}`}>
+              {currentUser?.avatar || (currentUser?.name ?? '?').slice(0, 2).toUpperCase()}
             </div>
           </div>
         </header>
