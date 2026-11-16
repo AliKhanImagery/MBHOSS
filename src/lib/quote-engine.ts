@@ -442,13 +442,19 @@ export function checkQuote(q: QuotationTemplate, rules: TemplateRules): QuoteChe
   return checks.sort((a, b) => (a.severity === b.severity ? 0 : a.severity === 'block' ? -1 : 1));
 }
 
-/** Compact view of the quote for the model: ids it can reference, no supplier-secret formatting. */
-export function summarizeQuote(q: QuotationTemplate): string {
+/**
+ * Compact view of the quote for the model. With `forModel`, no cost, price or total is included:
+ * the model only needs ids, quantities and margins to propose edits, and the engine does the money.
+ * This keeps commercially sensitive numbers away from the AI provider (important on a free tier,
+ * where the provider may use submitted content).
+ */
+export function summarizeQuote(q: QuotationTemplate, forModel = false): string {
   const lines = q.lineItems.length
     ? q.lineItems
-        .map(
-          (l, i) =>
-            `  ${i + 1}. id=${l.id} | ${l.description} | qty ${l.qty} ${l.uom} | cost ${l.unitCost} | margin ${l.marginPct}% | unit price ${l.unitPrice} | total ${l.total}`
+        .map((l, i) =>
+          forModel
+            ? `  ${i + 1}. id=${l.id} | ${l.description} | qty ${l.qty} ${l.uom} | margin ${l.marginPct}%`
+            : `  ${i + 1}. id=${l.id} | ${l.description} | qty ${l.qty} ${l.uom} | cost ${l.unitCost} | margin ${l.marginPct}% | unit price ${l.unitPrice} | total ${l.total}`
         )
         .join('\n')
     : '  (no items yet)';
@@ -460,6 +466,6 @@ export function summarizeQuote(q: QuotationTemplate): string {
     `Validity days: ${q.validityDays || '(not set)'}`,
     `Items:\n${lines}`,
     `Extra terms: ${q.notes.length ? q.notes.map((n, i) => `[${i}] ${n}`).join(' | ') : '(none)'}`,
-    `Grand total: ${q.grandTotal} (excludes GST and taxes)`,
+    ...(forModel ? [] : [`Grand total: ${q.grandTotal} (excludes GST and taxes)`]),
   ].join('\n');
 }

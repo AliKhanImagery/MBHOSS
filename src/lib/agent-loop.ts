@@ -55,7 +55,7 @@ Operations (use only these):
 Include only the fields you need.
 
 HARD RULES
-1. Never invent a price, quantity, margin, brand, part number, client or term. Use only what the user wrote, what is in the DATA BANK, or what is already on the quote.
+1. Never invent a price, quantity, margin, brand, part number, client or term. Use only what the user wrote, what is in the DATA BANK, or what is already on the quote. You are not shown any prices on purpose: the engine looks up costs and does all the maths, so never write a price yourself unless the user typed it.
 2. Items come from the DATA BANK by id. Use a manual add_line only if the user clearly named something that is not in the data bank AND typed its cost price themselves.
 3. If a needed value is missing or the request is ambiguous (which item? how many? what margin?), put ONE short, plain-language question in "question" and do not guess. Do not use jargon.
 4. Reference existing lines by their id exactly as listed. Do not repeat changes that are already on the quote.
@@ -78,19 +78,20 @@ export function pickBankItems(bank: DataBankItem[], text: string, limit = MAX_BA
     .map((x) => x.d);
 }
 
+// Prices are deliberately NOT sent: the model only picks items, the engine looks up the cost.
 function bankBlock(items: DataBankItem[]): string {
   if (items.length === 0) return '  (the Data Bank is empty)';
-  return items.map((d) => `  ${d.id} | ${d.company} | ${d.machineName} | cost ${d.pricePKR}`).join('\n');
+  return items.map((d) => `  ${d.id} | ${d.machineName}${d.category ? ` | ${d.category}` : ''}`).join('\n');
 }
 
+/** Old assistant replies contain totals and prices; strip them before they go back to the provider. */
+export const redactMoney = (s: string): string => s.replace(/Rs\.?\s?[\d,]+(?:\.\d+)?/gi, 'Rs. [amount]');
+
+// Only what the model needs to behave. Actual limits stay private; the engine enforces them.
 function rulesBlock(r: TemplateRules): string {
-  const parts: string[] = [];
-  if (r.defaultMarginPct !== null) parts.push(`default margin ${r.defaultMarginPct}% (use only if the user gave no margin)`);
-  if (r.minMarginPct !== null) parts.push(`minimum margin ${r.minMarginPct}%`);
-  if (r.defaultValidityDays !== null) parts.push(`default validity ${r.defaultValidityDays} days`);
-  if (r.maxValidityDays !== null) parts.push(`maximum validity ${r.maxValidityDays} days`);
-  if (r.maxCreditDays !== null) parts.push(`maximum credit ${r.maxCreditDays} days`);
-  return parts.length ? parts.join('; ') : '(no company rules set — do not assume any)';
+  return r.defaultMarginPct !== null
+    ? 'a company default margin exists: leave marginPct out when the user gave none'
+    : 'no default margin: if the user gave none, ask for it';
 }
 
 export function parseModelJson(raw: string): { ops: QuoteOp[]; question: string | null } | null {
@@ -119,10 +120,10 @@ export async function runAgent(input: AgentInput): Promise<AgentOutput> {
   const opLog: OpResult[] = [];
 
   const messages: LlmMessage[] = [
-    ...history.map((h) => ({ role: h.role, content: h.content.slice(0, 1500) })),
+    ...history.map((h) => ({ role: h.role, content: (h.role === 'assistant' ? redactMoney(h.content) : h.content).slice(0, 1500) })),
     {
       role: 'user',
-      content: `CURRENT QUOTE\n${summarizeQuote(quote)}\n\nDATA BANK (use these ids)\n${bankBlock(bank)}\n\nCOMPANY RULES: ${rulesBlock(input.rules)}\n\nUSER REQUEST: ${input.instruction}`,
+      content: `CURRENT QUOTE\n${summarizeQuote(quote, true)}\n\nDATA BANK (use these ids)\n${bankBlock(bank)}\n\nCOMPANY RULES: ${rulesBlock(input.rules)}\n\nUSER REQUEST: ${input.instruction}`,
     },
   ];
 
@@ -158,7 +159,7 @@ export async function runAgent(input: AgentInput): Promise<AgentOutput> {
     // Give the engine's objections back to the model so it can correct itself.
     messages.push({
       role: 'user',
-      content: `The engine rejected some actions:\n${hardRejects.map((r) => `- ${r.op}: ${r.message}`).join('\n')}\n\nUPDATED QUOTE\n${summarizeQuote(quote)}\n\nFix these if you can using only allowed data. If you cannot, ask the user one plain question, or return {"ops":[],"question":null} to stop.`,
+      content: `The engine rejected some actions:\n${hardRejects.map((r) => `- ${r.op}: ${r.message}`).join('\n')}\n\nUPDATED QUOTE\n${summarizeQuote(quote, true)}\n\nFix these if you can using only allowed data. If you cannot, ask the user one plain question, or return {"ops":[],"question":null} to stop.`,
     });
   }
 

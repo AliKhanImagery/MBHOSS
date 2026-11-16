@@ -80,3 +80,17 @@ test('a rejection the model gives up on is still reported (stops after the model
   assert.equal(out.rejected.length, 1);
   assert.match(out.reply, /typed yourself|Data Bank/);
 });
+
+test('no prices, costs or totals are sent to the AI provider', async () => {
+  const seen: string[] = [];
+  const spy: LlmProvider = async (system, messages) => {
+    seen.push(system, ...messages.map((m) => m.content));
+    return '{"ops":[{"op":"add_line","dataBankId":"db1","qty":2,"marginPct":10}],"question":null}';
+  };
+  const first = await runAgent({ ...base(spy, 'add 2 pumps at 10%'), history: [{ role: 'assistant', content: 'Quote total is now Rs. 22,000 (excluding GST and taxes).' }] });
+  assert.equal(first.quote.grandTotal, 22000);
+  const sent = seen.join('\n');
+  assert.ok(!sent.includes('10000'), 'data bank cost leaked');
+  assert.ok(!sent.includes('22,000') && !sent.includes('22000'), 'total leaked');
+  assert.match(sent, /Rs\. \[amount\]/);
+});

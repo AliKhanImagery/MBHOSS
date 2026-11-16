@@ -82,7 +82,7 @@ export async function POST(req: NextRequest) {
     });
   } catch (e) {
     if (e instanceof LlmError) {
-      return fail(e.message, e.kind === 'not_configured' ? 503 : 502);
+      return fail(e.message, e.kind === 'not_configured' ? 503 : e.kind === 'rate_limited' ? 429 : 502);
     }
     console.error('[qri-agent] unexpected error', e);
     return fail('Something went wrong on our side. Nothing was changed.', 500);
