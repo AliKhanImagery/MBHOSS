@@ -484,7 +484,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const clearChat = () => setChatMessages([]);
 
   const startNewQuote = () => {
-    const fresh = blankQuote(officeTemplate?.rules ?? null, officeTemplate?.version);
+    const fresh = blankQuote(officeTemplate?.rules ?? null, officeTemplate?.version, officeTemplate?.terms);
     quoteRef.current = fresh;
     setTemplateStateRaw(fresh);
     setUndoStack([]);

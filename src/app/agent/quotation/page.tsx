@@ -30,6 +30,21 @@ const STARTERS = [
 const inline =
   'bg-transparent border-b border-dashed border-slate-300 focus:border-[#FF4D6D] focus:outline-none px-0.5 py-0.5 print:border-0 w-full';
 
+// Text box that grows to fit its text, so nothing is ever cut off on screen or in the PDF.
+function AutoText({ value, onChange, className }: { value: string; onChange: (v: string) => void; className?: string }) {
+  const ref = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const fit = () => { el.style.height = 'auto'; el.style.height = `${el.scrollHeight}px`; };
+    fit();
+    window.addEventListener('resize', fit);
+    window.addEventListener('beforeprint', fit);
+    return () => { window.removeEventListener('resize', fit); window.removeEventListener('beforeprint', fit); };
+  }, [value]);
+  return <textarea ref={ref} rows={1} value={value} onChange={(e) => onChange(e.target.value)} className={className} />;
+}
+
 function QuotationContent() {
   const params = useSearchParams();
   const deepLinkPrompt = params.get('prompt');
@@ -179,6 +194,8 @@ function QuotationContent() {
   }
 
   const t = officeTemplate;
+  const terms = q.terms ?? t.terms;
+  const hasTerms = terms.some((x) => x.trim());
   const lastChangedId = [...chatMessages].reverse().find((m) => m.systemLog === 'changed')?.id;
   const th = 'py-2 px-1.5 text-left font-semibold text-[10px] uppercase tracking-wide text-slate-600 border-b-2 border-slate-800';
 
@@ -304,12 +321,27 @@ function QuotationContent() {
               </div>
             )}
 
-            {t.terms.filter((x) => x.trim()).length > 0 && (
-              <div className="mt-4">
-                <div className="font-bold mb-1">Terms &amp; Conditions</div>
-                <ol className="list-decimal pl-4 space-y-0.5">
-                  {t.terms.filter((x) => x.trim()).map((x, i) => <li key={i}>{x}</li>)}
+            {(
+              <div className={`mt-4 ${hasTerms ? '' : 'print:hidden'}`}>
+                <div className="flex items-center justify-between">
+                  <div className="font-bold mb-1">Terms &amp; Conditions</div>
+                  <button onClick={() => updateTemplateField('terms', [...t.terms])} className="text-[11px] font-semibold text-slate-400 hover:text-slate-700 print:hidden cursor-pointer" title="Put back the company's standard terms">Reset to standard</button>
+                </div>
+                <ol className="list-decimal pl-4 space-y-1">
+                  {terms.map((x, i) => (
+                    <li key={i} className={`pl-1 ${x.trim() ? '' : 'print:hidden'}`}>
+                      <div className="flex items-start gap-1">
+                        <AutoText
+                          value={x}
+                          onChange={(v) => updateTemplateField('terms', terms.map((y, j) => (j === i ? v : y)))}
+                          className="flex-1 resize-none bg-transparent border-0 border-b border-dashed border-transparent hover:border-slate-300 focus:border-[#FF4D6D] focus:outline-none px-0.5 py-0 leading-relaxed print:border-0 overflow-hidden"
+                        />
+                        <button onClick={() => updateTemplateField('terms', terms.filter((_, j) => j !== i))} className="text-slate-300 hover:text-red-600 mt-0.5 print:hidden cursor-pointer" title="Remove this term"><XCircle className="w-3.5 h-3.5" /></button>
+                      </div>
+                    </li>
+                  ))}
                 </ol>
+                <button onClick={() => updateTemplateField('terms', [...terms, ''])} className="mt-1 inline-flex items-center gap-1 text-[11px] font-semibold text-slate-600 hover:text-black print:hidden cursor-pointer"><Plus className="w-3 h-3" /> Add a term</button>
               </div>
             )}
 
