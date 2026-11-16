@@ -2,6 +2,9 @@
 // Qri Agentic Procurement OS - Core Domain Types
 // ==============================================================================
 
+import type { QuoteRange } from '../lib/quote-range';
+export type { QuoteRange };
+
 export type UserRole = 'Super Admin' | 'Admin' | 'Procurement Engineer' | 'Viewer';
 
 export interface User {
@@ -15,6 +18,7 @@ export interface User {
     dataBankWrite: boolean;
     marginOverride: boolean;
     whatsappBot: boolean;
+    quoteRange?: QuoteRange; // quotation numbers this person may issue (admin-assigned)
   };
 }
 

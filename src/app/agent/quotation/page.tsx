@@ -6,6 +6,7 @@ import { useSearchParams } from 'next/navigation';
 import { AlertTriangle, CheckCircle2, ChevronsRight, Download, FilePlus2, MessageSquare, Paperclip, Plus, Save, Send, Trash2, Undo2, X, XCircle } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { checkQuote, formatPKR } from '@/lib/quote-engine';
+import { nextRef, numberInRange } from '@/lib/quote-range';
 import { authHeaders } from '@/lib/supabase';
 import { TopBarActions } from '@/components/TopBarActions';
 import { prepareImage, type PreparedImage } from '@/lib/image-prepare';
@@ -35,7 +36,7 @@ function QuotationContent() {
   const deepLinkSent = useRef(false);
 
   const {
-    currentUser, isAdmin, officeTemplate, dataBank,
+    currentUser, isAdmin, officeTemplate, dataBank, users, activeCases,
     templateState: q, updateTemplateField, updateLineItem, addLineItem, removeLineItem,
     applyQuote, undoQuote, canUndo, startNewQuote, saveCurrentCase,
     chatMessages, addChatMessage,
@@ -64,7 +65,30 @@ function QuotationContent() {
   const canDownload = !!currentUser?.features.directPdfExport;
   const rules = officeTemplate?.rules;
 
-  const checks = useMemo(() => (rules ? checkQuote(q, rules) : []), [q, rules]);
+  // The number range an admin assigned to this person (looked up live so admin edits show up after a sync)
+  const range = users.find((u) => u.id === currentUser?.id)?.features?.quoteRange ?? currentUser?.features.quoteRange;
+  const usedRefs = useMemo(() => activeCases.map((c) => c.caseRef), [activeCases]);
+  const upcoming = useMemo(() => (range ? nextRef(range, usedRefs) : null), [range, usedRefs]);
+  const rangeLocked = !!range && !isAdmin;
+
+  // A blank quotation takes the next number from the person's own range automatically.
+  useEffect(() => {
+    if (officeTemplate && upcoming && upcoming.ok && !q.quoteRef.trim()) updateTemplateField('quoteRef', upcoming.ref);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [officeTemplate, upcoming?.ok ? upcoming.ref : null, q.quoteRef]);
+
+  const checks = useMemo(() => {
+    const base = rules ? checkQuote(q, rules) : [];
+    const extra: typeof base = [];
+    if (range && upcoming && !upcoming.ok && !q.quoteRef.trim()) {
+      extra.push({ severity: 'block', code: 'ref_range_used_up', message: 'Your quotation numbers have run out. Please ask an admin for a new range.' });
+    } else if (range && q.quoteRef.trim() && numberInRange(range, q.quoteRef) === null) {
+      extra.push({ severity: isAdmin ? 'warn' : 'block', code: 'ref_out_of_range', message: 'This quotation number is outside the range assigned to you.' });
+    } else if (!range && !isAdmin) {
+      extra.push({ severity: 'warn', code: 'no_range', message: 'No quotation number range is assigned to you yet. Please ask an admin.' });
+    }
+    return [...extra, ...base];
+  }, [q, rules, range, upcoming, isAdmin]);
   const blocking = checks.filter((c) => c.severity === 'block');
 
   useEffect(() => {
@@ -207,7 +231,7 @@ function QuotationContent() {
 
             <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 mb-4">
               <label className="flex items-center gap-2"><span className="font-semibold whitespace-nowrap">Quotation No:</span>
-                <input className={inline} value={q.quoteRef} placeholder={t.refHint || 'type it here'} onChange={(e) => updateTemplateField('quoteRef', e.target.value)} /></label>
+                <input className={inline} value={q.quoteRef} readOnly={rangeLocked} title={rangeLocked ? 'Issued automatically from your assigned range' : undefined} placeholder={t.refHint || 'type it here'} onChange={(e) => updateTemplateField('quoteRef', e.target.value)} /></label>
               <label className="flex items-center gap-2"><span className="font-semibold">Date:</span>
                 <input type="date" className={inline} value={q.date} onChange={(e) => updateTemplateField('date', e.target.value)} /></label>
               <label className="flex items-center gap-2"><span className="font-semibold">To:</span>

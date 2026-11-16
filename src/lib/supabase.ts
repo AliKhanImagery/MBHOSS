@@ -303,6 +303,21 @@ export async function fetchTeamMembersFromCloud(): Promise<User[] | null> {
 }
 
 
+/** Saves one person's feature switches and quote-number range. Returns false if the cloud refused it. */
+export async function syncTeamMemberFeaturesToCloud(userId: string, features: User['features']): Promise<boolean> {
+  try {
+    const { error } = await supabase.from('team_members').update({ features }).eq('id', userId);
+    if (error) {
+      console.warn('[Supabase] syncTeamMemberFeaturesToCloud error:', error.message);
+      return false;
+    }
+    return true;
+  } catch (err: any) {
+    console.warn('[Supabase] syncTeamMemberFeaturesToCloud network error:', err.message);
+    return false;
+  }
+}
+
 // ─── Auth helpers ────────────────────────────────────────────────────────────
 
 /** Header for calls to our own API routes. Empty in developer mode (sign-in off). */
