@@ -5,11 +5,15 @@
 
 import { createClient } from '@supabase/supabase-js';
 import { DataBankItem, QuotationTemplate, QuotationCase, User } from '@/types';
+import { parseAuthLinkType } from '@/lib/auth-link';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://viglioqszxqiolhxfcka.supabase.co';
 const supabaseAnonKey =
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZpZ2xpb3FzenhxaW9saHhmY2thIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ3NTE2NzksImV4cCI6MjExMDMyNzY3OX0.vU7hSRRbG0zt2FPIs_fNIdObz0Bx_4pN2Do8kyAdw9I';
+
+// Must be read before createClient, which removes the token from the address bar.
+export const authLinkType = typeof window !== 'undefined' ? parseAuthLinkType(window.location.hash) : null;
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 

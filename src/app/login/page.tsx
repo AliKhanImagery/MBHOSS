@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Zap, UserCheck, Lock, Mail, AlertTriangle } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
+import { supabase } from '@/lib/supabase';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -26,6 +27,18 @@ export default function LoginPage() {
     setBusy(false);
     if (res.ok) router.push('/');
     else setError(res.error ?? 'Could not sign in.');
+  };
+
+  const [resetMsg, setResetMsg] = useState<string | null>(null);
+  const forgot = async () => {
+    setError(null);
+    setResetMsg(null);
+    if (!email.trim()) {
+      setError('Type your work email above first, then press "Forgot your password?".');
+      return;
+    }
+    await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: `${window.location.origin}/set-password` });
+    setResetMsg('If that email is set up for this app, a link to choose a new password is on its way. Check your inbox.');
   };
 
   const field = 'w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3 py-2.5 text-sm text-slate-900 focus:outline-none focus:border-[#FF4D6D] focus:bg-white';
@@ -65,7 +78,8 @@ export default function LoginPage() {
             <button type="submit" disabled={busy} className="w-full py-3 bg-slate-900 hover:bg-black text-white font-bold text-sm rounded-xl disabled:opacity-50 cursor-pointer">
               {busy ? 'Signing in…' : 'Sign in'}
             </button>
-            <p className="text-[11px] text-slate-500 text-center">Forgot your password? Ask an admin to reset it.</p>
+            {resetMsg && <div className="rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-800 text-xs p-3">{resetMsg}</div>}
+            <button type="button" onClick={forgot} className="w-full text-[11px] text-slate-500 hover:text-slate-900 underline cursor-pointer">Forgot your password?</button>
           </form>
         ) : (
           <div className="space-y-3">
