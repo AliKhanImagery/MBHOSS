@@ -51,7 +51,9 @@ function QuotationContent() {
   const checks = useMemo(() => (rules ? checkQuote(q, rules) : []), [q, rules]);
   const blocking = checks.filter((c) => c.severity === 'block');
 
-  useEffect(() => feedEnd.current?.scrollIntoView({ behavior: 'smooth' }), [chatMessages, thinking]);
+  useEffect(() => {
+    feedEnd.current?.scrollIntoView({ behavior: "smooth" });
+  }, [chatMessages, thinking]);
 
   const flash = (msg: string) => {
     setToast(msg);
