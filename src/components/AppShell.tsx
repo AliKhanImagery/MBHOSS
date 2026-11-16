@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
@@ -19,14 +19,21 @@ import {
   Send,
 } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
+import { AUTH_ENABLED } from '@/lib/auth-config';
+import { authLinkType } from '@/lib/supabase';
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { currentUser, logout, activeCases, cloudStatus, refreshFromCloud, authLoading } = useApp();
 
-  // If on login page, do not show navigation shell
-  if (pathname === '/login') {
+  // Invite and password-reset links must land on the set-password screen, not the app
+  useEffect(() => {
+    if (AUTH_ENABLED && authLinkType && pathname !== '/set-password') router.replace('/set-password');
+  }, [pathname, router]);
+
+  // If on login or set-password page, do not show navigation shell
+  if (pathname === '/login' || pathname === '/set-password') {
     return <>{children}</>;
   }
 
