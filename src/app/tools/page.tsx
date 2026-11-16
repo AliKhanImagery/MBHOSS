@@ -1485,7 +1485,7 @@ function ToolsContent() {
             {activeTool === 'tank' && (
 <div className="w-full space-y-2.5">
 {view === 'dims' && (<>
-<div className="max-w-4xl space-y-3">
+<div className="max-w-4xl mx-auto space-y-3">
                     {/* Presets with 20,000L and 30,000L included */}
                     <div className="flex items-center flex-wrap gap-1.5 bg-white border border-slate-300 rounded-2xl px-4 py-2.5 shadow-2xs">
                       <span className="text-xs text-slate-900 font-black mr-1 uppercase tracking-wider">Presets:</span>
@@ -1586,7 +1586,7 @@ function ToolsContent() {
 </div>
 </>)}
 {view === 'fab' && (<>
-<div className="max-w-4xl space-y-3">
+<div className="max-w-4xl mx-auto space-y-3">
                     {/* Fabrication Material & Cost Estimator Card (BETA) */}
                     <div className="bg-white border border-slate-300/90 rounded-2xl p-5 shadow-xs space-y-4">
                       <div className="flex items-center justify-between pb-2.5 border-b border-slate-200">
@@ -1858,7 +1858,7 @@ function ToolsContent() {
                 Standards: DIN 11850, EHEDG Doc. 9, Darcy-Weisbach, IEC 60534
             ================================================================ */}
             {activeTool === 'pipe' && (
-<div className="max-w-4xl space-y-5">
+<div className="max-w-4xl mx-auto space-y-5">
 {view === 'inputs' && (<>
                 <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs space-y-6">
                   <h2 className="text-lg font-bold text-slate-900 flex items-center space-x-2 pb-3 border-b border-slate-100">
@@ -1942,7 +1942,7 @@ function ToolsContent() {
                 FBR Income Tax Ordinance 2001, Finance Act 2024
             ================================================================ */}
             {activeTool === 'wht' && (
-<div className="max-w-4xl space-y-5">
+<div className="max-w-4xl mx-auto space-y-5">
 {view === 'inputs' && (<>
                 <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs space-y-6">
                   <h2 className="text-lg font-bold text-slate-900 flex items-center space-x-2 pb-3 border-b border-slate-100">
@@ -2032,7 +2032,7 @@ function ToolsContent() {
                 Import WHT: Section 148, ITO 2001 — 6% for filers
             ================================================================ */}
             {activeTool === 'incoterm' && (
-<div className="max-w-4xl space-y-5">
+<div className="max-w-4xl mx-auto space-y-5">
 {view === 'inputs' && (<>
                 <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs space-y-6">
                   <h2 className="text-lg font-bold text-slate-900 flex items-center space-x-2 pb-3 border-b border-slate-100">
@@ -2120,7 +2120,7 @@ function ToolsContent() {
                 IEC 60947-4-1 (Contactors), IEC 60947-5-1 (Control Devices)
             ================================================================ */}
             {activeTool === 'crossref' && (
-<div className="max-w-5xl space-y-5">
+<div className="max-w-5xl mx-auto space-y-5">
 {view === 'table' && (<>
                 <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-xs space-y-4">
                   <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
@@ -2198,7 +2198,7 @@ function ToolsContent() {
                 IEC 60947-4-1 (Contactor AC-3 duty)
             ================================================================ */}
             {activeTool === 'motor' && (
-<div className="max-w-4xl space-y-5">
+<div className="max-w-4xl mx-auto space-y-5">
 {view === 'inputs' && (<>
                 <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs space-y-6">
                   <h2 className="text-lg font-bold text-slate-900 flex items-center space-x-2 pb-3 border-b border-slate-100">

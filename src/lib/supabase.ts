@@ -306,9 +306,14 @@ export async function fetchTeamMembersFromCloud(): Promise<User[] | null> {
 /** Saves one person's feature switches and quote-number range. Returns false if the cloud refused it. */
 export async function syncTeamMemberFeaturesToCloud(userId: string, features: User['features']): Promise<boolean> {
   try {
-    const { error } = await supabase.from('team_members').update({ features }).eq('id', userId);
+    const { data, error } = await supabase.from('team_members').update({ features }).eq('id', userId).select('id');
     if (error) {
       console.warn('[Supabase] syncTeamMemberFeaturesToCloud error:', error.message);
+      return false;
+    }
+    // A database that refuses the change by policy answers "no error" with zero rows changed.
+    if (!data || data.length === 0) {
+      console.warn('[Supabase] syncTeamMemberFeaturesToCloud: no row was changed (not allowed, or the person is not in the cloud list).');
       return false;
     }
     return true;

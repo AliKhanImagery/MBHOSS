@@ -33,17 +33,22 @@ const decode = (s: string): string =>
     .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)))
     .replace(/&amp;/g, '&');
 
-/** Paragraph texts of one XML part, in document order. */
-export function paragraphsOf(xml: string): string[] {
-  const out: string[] = [];
+/** Paragraphs of one XML part, in document order, with a flag for paragraphs that are bullets or numbered items. */
+export function paragraphsWithList(xml: string): { text: string; list: boolean }[] {
+  const out: { text: string; list: boolean }[] = [];
   for (const p of xml.match(/<w:p[ >][\s\S]*?<\/w:p>/g) ?? []) {
     const withBreaks = p.replace(/<w:tab\s*\/>/g, '<w:t> </w:t>').replace(/<w:br\s*\/>/g, '<w:t> </w:t>');
     let text = '';
     for (const m of withBreaks.matchAll(/<w:t(?:\s[^>]*)?>([\s\S]*?)<\/w:t>/g)) text += m[1];
     text = decode(text).replace(/\s+/g, ' ').trim();
-    if (text && text !== out[out.length - 1]) out.push(text); // also drops mc:Fallback duplicates
+    if (text && text !== out[out.length - 1]?.text) out.push({ text, list: /<w:numPr>/.test(p) }); // also drops mc:Fallback duplicates
   }
   return out;
+}
+
+/** Paragraph texts of one XML part, in document order. */
+export function paragraphsOf(xml: string): string[] {
+  return paragraphsWithList(xml).map((p) => p.text);
 }
 
 const partNames = (zip: JSZip, prefix: string): string[] =>
@@ -94,7 +99,8 @@ export async function extractOfficeTemplate(data: ArrayBuffer | Uint8Array, file
   if (!docFile) throw new Error('This does not look like a Word (.docx) file.');
 
   const findings: string[] = [];
-  const body = paragraphsOf(await docFile.async('string'));
+  const bodyP = paragraphsWithList(await docFile.async('string'));
+  const body = bodyP.map((p) => p.text);
 
   // Letterhead (header) and footer lines
   const headerNames = partNames(zip, 'header');
@@ -115,7 +121,14 @@ export async function extractOfficeTemplate(data: ArrayBuffer | Uint8Array, file
   const closingAt = body.findIndex((l, i) => i > Math.max(termsAt, -1) && CLOSING.test(l));
   let terms: string[] = [];
   if (termsAt >= 0) {
-    const end = closingAt > termsAt ? closingAt : Math.min(body.length, termsAt + 1 + 15);
+    let end = closingAt > termsAt ? closingAt : Math.min(body.length, termsAt + 1 + 15);
+    // When the clauses are a bulleted/numbered list in Word, the terms are exactly that list;
+    // paragraphs after it (a sign-off, a note) are not terms.
+    if (bodyP[termsAt + 1]?.list) {
+      let k = termsAt + 1;
+      while (k < bodyP.length && bodyP[k].list) k++;
+      end = Math.min(end, k);
+    }
     terms = body.slice(termsAt + 1, end).map(stripNumbering).filter(Boolean);
     findings.push(`Terms & Conditions: ${terms.length} clause(s) copied word for word.`);
     if (closingAt < 0) findings.push('No closing ("Regards") was found after the terms, so please check where the terms end.');
@@ -126,7 +139,11 @@ export async function extractOfficeTemplate(data: ArrayBuffer | Uint8Array, file
   // Signatory block after the closing line
   let signatory = { company: '', name: '', designation: '' };
   if (closingAt >= 0) {
-    const after = body.slice(closingAt + 1, closingAt + 5);
+    // "Thank you!" followed by "Best Regards," are both closings: the signature starts after the last one.
+    let sigFrom = closingAt + 1;
+    while (sigFrom < body.length && CLOSING.test(body[sigFrom])) sigFrom++;
+    // Phone numbers are personal to whoever sends the quote; never copy one into the shared template.
+    const after = body.slice(sigFrom, sigFrom + 4).filter((l) => !/^\+?[\d\s().-]{7,}$/.test(l) && l.length <= 60 && !/^note\b/i.test(l));
     const companyLine = after.find((l) => COMPANY_LINE.test(l));
     const rest = after.filter((l) => l !== companyLine);
     signatory = {

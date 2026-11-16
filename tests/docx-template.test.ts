@@ -36,3 +36,17 @@ test('a document without a letterhead is left blank and flagged — nothing is i
 test('a non-docx file gives a friendly error', async () => {
   await assert.rejects(() => extractOfficeTemplate(new Uint8Array([1, 2, 3]), 'x.docx'), /Word/);
 });
+
+import { readFileSync as _readFileSync } from 'node:fs';
+import { extractOfficeTemplate as _extract } from '../src/lib/docx-template';
+
+test('real-format quotation: terms are only the bulleted list, signature is not a note or a phone number', async () => {
+  const buf = _readFileSync(new URL('./fixtures/master-quotation.docx', import.meta.url));
+  const { draft } = await _extract(buf, 'master-quotation.docx');
+  assert.equal(draft.terms.length, 11);
+  assert.ok(draft.terms[0].startsWith('Prices in PKR'));
+  assert.ok(!draft.terms.some((t) => t.startsWith('We hope to have you')));
+  assert.equal(draft.signatory.name, 'Sales Team');
+  assert.ok(!/\d{6}/.test(draft.signatory.designation));
+  assert.ok(!/^note/i.test(draft.signatory.designation));
+});
