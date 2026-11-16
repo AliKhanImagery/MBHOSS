@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { formatRef, nextRef, numberInRange, rangesOverlap, validateRange, type QuoteRange } from '../src/lib/quote-range';
+import { formatRef, freedSlots, nextRef, numberInRange, rangesOverlap, validateRange, withIgnored, type QuoteRange } from '../src/lib/quote-range';
 
 const r: QuoteRange = { prefix: 'Q26', digits: 5, start: 1000, end: 1999 };
 
@@ -40,4 +40,21 @@ test('detects overlapping ranges', () => {
   assert.equal(rangesOverlap(r, { ...r, start: 1500, end: 2500 }), true);
   assert.equal(rangesOverlap(r, { ...r, start: 2000, end: 2999 }), false);
   assert.equal(rangesOverlap(r, { ...r, prefix: 'P26', start: 1000, end: 1999 }), false);
+});
+
+test('freed slots: gaps below the highest used number, lowest first', () => {
+  assert.deepEqual(freedSlots(r, []), []);
+  assert.deepEqual(freedSlots(r, ['Q2601000', 'Q2601001', 'Q2601002']), []);
+  assert.deepEqual(freedSlots(r, ['Q2601000', 'Q2601003', 'Q2601005']), [1001, 1002, 1004]);
+  // references from other ranges or formats are ignored
+  assert.deepEqual(freedSlots(r, ['Q2601000', 'X2601003', 'Q2605000', 'Q2601002']), [1001]);
+});
+
+test('ignored numbers are never offered again, and the normal next number is unchanged', () => {
+  const used = ['Q2601000', 'Q2601003'];
+  const ign = withIgnored(r, [1001]);
+  assert.deepEqual(freedSlots(ign, used), [1002]);
+  assert.deepEqual(freedSlots(withIgnored(ign, [1002, 1001]), used), []);
+  assert.deepEqual(ign.ignored, [1001]);
+  assert.deepEqual(nextRef(ign, used), { ok: true, ref: 'Q2601004', n: 1004 });
 });

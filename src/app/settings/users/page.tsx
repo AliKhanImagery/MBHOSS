@@ -30,6 +30,8 @@ export default function UserManagementPage() {
       return setRangeFor(null);
     }
     const r: QuoteRange = { prefix: rf.prefix.trim(), digits: Number(rf.digits), start: Number(rf.start), end: Number(rf.end) };
+    const keep = (rangeFor.features?.quoteRange?.ignored ?? []).filter((n) => n >= r.start && n <= r.end);
+    if (keep.length) r.ignored = keep;
     const errs = validateRange(r);
     if (rf.start.trim() === '' || rf.end.trim() === '') errs.push('Fill in both From and To.');
     for (const o of users) {
