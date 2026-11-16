@@ -40,8 +40,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     },
     {
       href: '/agent/quotation',
-      label: 'Quotation Agent',
-      shortLabel: 'Agent',
+      label: 'Make a Quotation',
+      shortLabel: 'Quote',
       icon: Sparkles,
       active: pathname.startsWith('/agent'),
     },
@@ -76,8 +76,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     },
     {
       href: '/settings/templates',
-      label: 'Settings & Rules',
-      shortLabel: 'Settings',
+      label: 'Quote Template',
+      shortLabel: 'Template',
       icon: FileCog,
       active: pathname.startsWith('/settings'),
     },

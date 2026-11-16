@@ -1,778 +1,365 @@
 'use client';
 
-import React, { useState, useRef, useEffect, Suspense } from 'react';
+import React, { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
-import {
-  Sparkles,
-  Paperclip,
-  Send,
-  Printer,
-  Save,
-  Plus,
-  Trash2,
-  RotateCcw,
-  Bot,
-  User as UserIcon,
-  CheckCircle2,
-  AlertTriangle,
-  FileCog,
-  FileText,
-  ChevronLeft,
-  ChevronRight,
-  PanelLeftClose,
-  PanelLeftOpen,
-} from 'lucide-react';
+import { useSearchParams } from 'next/navigation';
+import { AlertTriangle, CheckCircle2, Download, FilePlus2, Plus, Save, Send, Trash2, Undo2, XCircle } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
-import { QuoteLineItem } from '@/types';
+import { checkQuote, formatPKR } from '@/lib/quote-engine';
+import type { QuotationTemplate } from '@/types';
 
-function QuotationAgentContent() {
-  const searchParams = useSearchParams();
-  const initialPrompt = searchParams.get('prompt');
-  const hasTriggeredPrompt = useRef(false);
+interface AssistantResponse {
+  ok: boolean;
+  error?: string;
+  quote?: QuotationTemplate;
+  reply?: string;
+  changes?: string[];
+}
+
+const STARTERS = [
+  'Client is [client name]',
+  'Add [number] of [item name] at [margin]% margin',
+  'Delivery in [number] weeks, payment [terms]',
+];
+
+// Plain inline field: looks like a form box on screen, like normal text when printed.
+const inline =
+  'bg-transparent border-b border-dashed border-slate-300 focus:border-[#FF4D6D] focus:outline-none px-0.5 py-0.5 print:border-0 w-full';
+
+function QuotationContent() {
+  const params = useSearchParams();
+  const deepLinkPrompt = params.get('prompt');
+  const deepLinkSent = useRef(false);
 
   const {
-    templateState,
-    setTemplateState,
-    updateTemplateField,
-    updateLineItem,
-    addLineItem,
-    removeLineItem,
-    dataBank,
-    chatMessages,
-    addChatMessage,
-    clearChat,
-    saveCurrentCase,
-    globalLetterheadPdf,
-    letterheadFileName,
-    masterTemplateRules,
+    currentUser, isAdmin, officeTemplate, dataBank,
+    templateState: q, updateTemplateField, updateLineItem, addLineItem, removeLineItem,
+    applyQuote, undoQuote, canUndo, startNewQuote, saveCurrentCase,
+    chatMessages, addChatMessage,
   } = useApp();
 
-  // Chat State
-  const [inputPrompt, setInputPrompt] = useState('');
-  const [isAgentThinking, setIsAgentThinking] = useState(false);
-  const [attachedFileName, setAttachedFileName] = useState<string | null>(null);
-  const [saveSuccessNotice, setSaveSuccessNotice] = useState(false);
-  const [isChatCollapsed, setIsChatCollapsed] = useState(false);
-  const chatBottomRef = useRef<HTMLDivElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [input, setInput] = useState('');
+  const [thinking, setThinking] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
+  const [tab, setTab] = useState<'quote' | 'assistant'>('quote');
+  const feedEnd = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll chat to bottom
+  const canSeeCosts = !!currentUser?.features.marginOverride;
+  const canDownload = !!currentUser?.features.directPdfExport;
+  const rules = officeTemplate?.rules;
+
+  const checks = useMemo(() => (rules ? checkQuote(q, rules) : []), [q, rules]);
+  const blocking = checks.filter((c) => c.severity === 'block');
+
   useEffect(() => {
-    chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [chatMessages, isAgentThinking]);
+    feedEnd.current?.scrollIntoView({ behavior: "smooth" });
+  }, [chatMessages, thinking]);
 
-  // Deep-link initial prompt execution from Main Dashboard
-  useEffect(() => {
-    if (initialPrompt && !hasTriggeredPrompt.current) {
-      hasTriggeredPrompt.current = true;
-      handleSendMessage(initialPrompt);
-    }
-  }, [initialPrompt]);
+  const flash = (msg: string) => {
+    setToast(msg);
+    setTimeout(() => setToast(null), 3500);
+  };
 
-  // Send message to Qri AI agent API
-  const handleSendMessage = async (textToSend?: string) => {
-    const text = textToSend !== undefined ? textToSend : inputPrompt;
-    if (!text.trim() && !attachedFileName) return;
+  const send = async (raw?: string) => {
+    const text = (raw ?? input).trim();
+    if (!text || thinking || !officeTemplate) return;
+    const history = chatMessages
+      .filter((m) => m.sender === 'user' || m.sender === 'agent')
+      .slice(-8)
+      .map((m) => ({ role: (m.sender === 'user' ? 'user' : 'assistant') as 'user' | 'assistant', content: m.text }));
 
-    let fullPrompt = text;
-    if (attachedFileName) {
-      fullPrompt = `[Attached Tender Document: ${attachedFileName}] ${text}`;
-    }
-
-    // 1. Append User Message to Journey Log
-    addChatMessage({
-      sender: 'user',
-      text: fullPrompt,
-    });
-
-    setInputPrompt('');
-    setAttachedFileName(null);
-    setIsAgentThinking(true);
-
+    addChatMessage({ sender: 'user', text });
+    setInput('');
+    setThinking(true);
     try {
       const res = await fetch('/api/qri-agent', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          prompt: fullPrompt,
-          current_template: templateState,
-          databank_items: dataBank,
-          master_template_rules: masterTemplateRules,
-        }),
+        body: JSON.stringify({ instruction: text, quote: q, history, dataBank, rules: officeTemplate.rules }),
       });
-
-      if (!res.ok) throw new Error('Agent failed to process quote request');
-
-      const data = await res.json();
-
-      // 2. Append Agent Response to Chat
-      addChatMessage({
-        sender: 'agent',
-        text: data.chat_response || 'Updated the quotation document according to your instruction.',
-      });
-
-      // 3. Instantly Update Document State
-      if (data.template_state) {
-        setTemplateState(data.template_state);
+      const data = (await res.json().catch(() => null)) as AssistantResponse | null;
+      if (!data || !data.ok || !data.quote) {
+        addChatMessage({ sender: 'agent', text: data?.error ?? 'Sorry, I could not reach the assistant. Nothing was changed. Please try again.', systemLog: 'error' });
+      } else {
+        const changed = (data.changes?.length ?? 0) > 0;
+        if (changed) applyQuote({ ...data.quote, templateVersion: officeTemplate.version });
+        addChatMessage({ sender: 'agent', text: data.reply ?? '', systemLog: changed ? 'changed' : undefined });
       }
-    } catch (err: any) {
-      console.error(err);
-      addChatMessage({
-        sender: 'system',
-        text: `⚠️ Agent Notice: ${err.message || 'Error communicating with AI engine'}. Using live document controls.`,
-      });
+    } catch {
+      addChatMessage({ sender: 'agent', text: 'Sorry, I could not reach the assistant. Check the internet connection. Nothing was changed.', systemLog: 'error' });
     } finally {
-      setIsAgentThinking(false);
+      setThinking(false);
     }
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setAttachedFileName(file.name);
-      setInputPrompt((prev) => prev || `Please extract line items from this tender document.`);
+  // Dashboard "type a request" box hands its text over in the address
+  useEffect(() => {
+    if (deepLinkPrompt && officeTemplate && !deepLinkSent.current) {
+      deepLinkSent.current = true;
+      void send(deepLinkPrompt);
     }
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deepLinkPrompt, officeTemplate]);
 
-  const handleSaveToCases = () => {
-    saveCurrentCase('Draft');
-    setSaveSuccessNotice(true);
-    setTimeout(() => setSaveSuccessNotice(false), 2500);
-    addChatMessage({
-      sender: 'system',
-      text: `Quotation ${templateState.quoteRef} saved to Active Cases under Draft status.`,
-    });
-  };
+  // ── No template yet ─────────────────────────────────────────────────────────
+  if (!officeTemplate) {
+    return (
+      <div className="h-full flex items-center justify-center p-6">
+        <div className="max-w-md bg-white border border-slate-200 rounded-2xl p-6 text-center shadow-xs">
+          <AlertTriangle className="w-8 h-8 text-amber-500 mx-auto mb-3" />
+          <h1 className="font-bold text-slate-900 mb-1">The quotation template is not ready</h1>
+          {isAdmin ? (
+            <>
+              <p className="text-sm text-slate-600 mb-4">Upload one of your approved quotations once, and everyone can then make quotes on it.</p>
+              <Link href="/settings/templates" className="inline-block px-5 py-2.5 rounded-full bg-slate-900 text-white text-sm font-semibold">Set up the template</Link>
+            </>
+          ) : (
+            <p className="text-sm text-slate-600">Please ask an admin to set it up. Quotes cannot be made until then.</p>
+          )}
+        </div>
+      </div>
+    );
+  }
 
-  const handlePrintPdf = () => {
-    window.print();
-  };
-
-  const formatPKR = (num: number) => {
-    return new Intl.NumberFormat('en-PK').format(num || 0);
-  };
+  const t = officeTemplate;
+  const lastChangedId = [...chatMessages].reverse().find((m) => m.systemLog === 'changed')?.id;
+  const th = 'py-2 px-1.5 text-left font-semibold text-[10px] uppercase tracking-wide text-slate-600 border-b-2 border-slate-800';
 
   return (
-    <div className="flex-1 relative w-full h-full overflow-hidden bg-[#ECEEF2] flex flex-col select-none">
-      {/* =========================================================================
-          TOP FLOATING ACTION TOOLBAR (Canvas Controls)
-      ========================================================================= */}
-      <div className="absolute top-3 right-4 z-30 flex items-center space-x-2 bg-white/95 backdrop-blur-md border border-slate-200/90 shadow-md rounded-full px-3.5 py-1.5 print:hidden">
-        {saveSuccessNotice && (
-          <span className="text-xs font-bold text-emerald-600 flex items-center space-x-1 animate-in fade-in mr-2">
-            <CheckCircle2 className="w-3.5 h-3.5" />
-            <span>Saved!</span>
-          </span>
-        )}
-        <span className="text-xs font-mono font-bold text-slate-700 hidden sm:inline mr-1">
-          {templateState.quoteRef}
-        </span>
-        <button
-          onClick={() => addLineItem()}
-          className="px-2.5 py-1 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold transition-colors cursor-pointer"
-          title="Add blank line item manually"
-        >
-          + Item
-        </button>
-        <button
-          onClick={handleSaveToCases}
-          className="px-3.5 py-1 rounded-full bg-slate-900 hover:bg-black text-white text-xs font-bold shadow-xs cursor-pointer transition-colors"
-        >
-          Save
-        </button>
-        <button
-          onClick={handlePrintPdf}
-          className="px-3.5 py-1 rounded-full bg-[#FF4D6D] hover:bg-[#FA3B5E] text-white text-xs font-bold shadow-xs cursor-pointer transition-all flex items-center space-x-1"
-        >
-          <Printer className="w-3.5 h-3.5" />
-          <span>PDF</span>
-        </button>
+    <div className="h-full flex flex-col lg:flex-row overflow-hidden bg-[#F4F5F7]">
+      {/* Phone / small screen switch */}
+      <div className="lg:hidden flex border-b border-slate-200 bg-white print:hidden">
+        {(['quote', 'assistant'] as const).map((k) => (
+          <button key={k} onClick={() => setTab(k)} className={`flex-1 py-2.5 text-sm font-semibold cursor-pointer ${tab === k ? 'text-[#FF4D6D] border-b-2 border-[#FF4D6D]' : 'text-slate-500'}`}>
+            {k === 'quote' ? 'Quotation' : `Assistant${blocking.length ? ` (${blocking.length})` : ''}`}
+          </button>
+        ))}
       </div>
 
-      {/* =========================================================================
-          COLLAPSED CHAT TRIGGER PILL (Visible when chat window is tucked away)
-      ========================================================================= */}
-      {isChatCollapsed && (
-        <button
-          onClick={() => setIsChatCollapsed(false)}
-          className="absolute top-3.5 left-4 z-30 bg-slate-900 hover:bg-black text-white px-4 py-2 rounded-full shadow-lg border border-slate-700/60 flex items-center space-x-2 text-xs font-bold transition-all cursor-pointer hover:scale-105 active:scale-95 animate-in fade-in"
-          title="Open Qri AI Co-Pilot"
-        >
-          <Bot className="w-4 h-4 text-[#FF4D6D]" />
-          <span>Open AI Agent Co-Pilot</span>
-          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse ml-1" />
-        </button>
-      )}
-
-      {/* =========================================================================
-          FLOATING QRI AI AGENT CHAT WINDOW (Floating Co-Pilot on Left)
-      ========================================================================= */}
-      <section
-        className={`absolute top-3 left-3 bottom-3 z-40 w-[calc(100vw-24px)] sm:w-[400px] lg:w-[440px] bg-white rounded-2xl shadow-2xl border border-slate-200/90 flex flex-col overflow-hidden transition-all duration-300 print:hidden ${
-          isChatCollapsed
-            ? '-translate-x-[120%] opacity-0 pointer-events-none'
-            : 'translate-x-0 opacity-100'
-        }`}
-      >
-        {/* Chat Header */}
-        <div className="h-14 px-4 sm:px-5 bg-white border-b border-slate-100 flex items-center justify-between flex-shrink-0">
-          <div className="flex items-center space-x-2.5">
-            <div className="w-8 h-8 rounded-xl bg-rose-50 border border-rose-100 flex items-center justify-center text-[#FF4D6D]">
-              <Bot className="w-4 h-4" />
-            </div>
-            <div>
-              <div className="flex items-center space-x-2">
-                <span className="font-bold text-sm text-slate-900">Qri AI Agent</span>
-                <span className="flex items-center space-x-1 text-[10px] px-2 py-0.2 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-mono font-bold">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                  <span>Active</span>
-                </span>
-              </div>
-              <div className="text-[11px] text-slate-400 font-medium truncate max-w-[160px]">
-                Procurement Co-Pilot
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-center space-x-1.5">
-            <Link
-              href="/settings/templates"
-              className="text-[11px] text-[#FF4D6D] hover:text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-2.5 py-1 rounded-full flex items-center space-x-1 font-semibold"
-              title="Configure Global Letterhead & DOCX Rules"
-            >
-              <FileCog className="w-3 h-3" />
-              <span>Rules</span>
-            </Link>
-            <button
-              onClick={clearChat}
-              className="p-1.5 text-slate-400 hover:text-slate-700 rounded-full hover:bg-slate-100 transition-colors cursor-pointer"
-              title="Clear Journey Log"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-            </button>
-            <button
-              onClick={() => setIsChatCollapsed(true)}
-              className="p-1.5 text-slate-400 hover:text-slate-800 rounded-full hover:bg-slate-100 transition-colors cursor-pointer ml-0.5"
-              title="Collapse chat to view quotation"
-            >
-              <PanelLeftClose className="w-4 h-4" />
-            </button>
-          </div>
+      {/* ═════ LEFT: the document ═════ */}
+      <div className={`${tab === 'quote' ? 'flex' : 'hidden'} lg:flex flex-1 min-w-0 flex-col`}>
+        <div className="flex flex-wrap items-center gap-2 px-4 py-2.5 bg-white border-b border-slate-200 print:hidden">
+          <button onClick={() => { if (q.lineItems.length === 0 || window.confirm('Start a new quotation? Anything not saved in this one will be lost.')) startNewQuote(); }} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-slate-300 text-xs font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer"><FilePlus2 className="w-3.5 h-3.5" /> New quotation</button>
+          <button onClick={undoQuote} disabled={!canUndo} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-slate-300 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40 cursor-pointer"><Undo2 className="w-3.5 h-3.5" /> Undo</button>
+          <div className="flex-1" />
+          {toast && <span className="text-xs font-semibold text-slate-700">{toast}</span>}
+          <button onClick={() => (saveCurrentCase('Draft') ? flash('Saved') : flash('Add the quotation number first'))} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-100 hover:bg-slate-200 text-xs font-semibold text-slate-800 cursor-pointer"><Save className="w-3.5 h-3.5" /> Save</button>
+          {canDownload && (
+            <button onClick={() => window.print()} disabled={blocking.length > 0} title={blocking.length ? 'Fix the red items first' : 'In the print window, choose “Save as PDF”'} className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-slate-900 hover:bg-black text-white text-xs font-bold disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"><Download className="w-3.5 h-3.5" /> Download PDF</button>
+          )}
         </div>
 
-        {/* Quick Action Prompt Chips */}
-        <div className="px-4 py-2 bg-slate-50/90 border-b border-slate-100 overflow-x-auto whitespace-nowrap flex items-center space-x-1.5 no-scrollbar flex-shrink-0">
-          {[
-            'Add 5 Siemens 24V Relays for Engro with 15% margin',
-            'Give 90 days credit payment terms',
-            'Change delivery terms to 8 weeks air freight',
-            'Apply 18% GST to this quote',
-          ].map((suggestion, idx) => (
-            <button
-              key={idx}
-              onClick={() => handleSendMessage(suggestion)}
-              className="px-2.5 py-1 rounded-full text-[11px] transition-all cursor-pointer font-medium border bg-white text-slate-700 border-slate-200 hover:border-[#FF4D6D] hover:text-[#FF4D6D] shadow-2xs whitespace-nowrap flex-shrink-0"
-            >
-              + {suggestion}
-            </button>
-          ))}
-        </div>
-
-        {/* Chat Messages Journey Log Feed */}
-        <div className="flex-1 p-4 overflow-y-auto space-y-3.5 bg-white">
-          {chatMessages.map((msg) => {
-            const isUser = msg.sender === 'user';
-            const isSystem = msg.sender === 'system';
-            const hasWarning = msg.text.includes('⚠️') || msg.text.includes('WARNING');
-
-            if (isSystem) {
-              return (
-                <div key={msg.id} className="flex items-center justify-center my-1.5">
-                  <div className="bg-slate-100 border border-slate-200 text-slate-700 text-[11px] px-3 py-1 rounded-full font-mono flex items-center space-x-1.5 shadow-2xs">
-                    <Sparkles className="w-3 h-3 text-[#FF4D6D]" />
-                    <span>{msg.text}</span>
-                  </div>
-                </div>
-              );
-            }
-
-            return (
-              <div
-                key={msg.id}
-                className={`flex items-start space-x-2.5 ${isUser ? 'flex-row-reverse space-x-reverse' : ''}`}
-              >
-                <div
-                  className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5 ${
-                    isUser
-                      ? 'bg-slate-900 text-white'
-                      : hasWarning
-                      ? 'bg-[#FF4D6D] text-white font-black'
-                      : 'bg-rose-50 border border-rose-200 text-[#FF4D6D] font-bold shadow-xs'
-                  }`}
-                >
-                  {isUser ? <UserIcon className="w-3.5 h-3.5" /> : <Bot className="w-3.5 h-3.5" />}
-                </div>
-
-                <div
-                  className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-xs sm:text-sm leading-relaxed shadow-xs ${
-                    isUser
-                      ? 'bg-slate-900 text-white rounded-tr-none'
-                      : hasWarning
-                      ? 'bg-rose-50 border border-rose-200 text-rose-950 rounded-tl-none'
-                      : 'bg-slate-100 border border-slate-200/80 text-slate-900 rounded-tl-none'
-                  }`}
-                >
-                  {hasWarning && !isUser && (
-                    <div className="mb-1.5 pb-1 border-b border-rose-200 flex items-center space-x-1.5 text-rose-700 font-bold text-xs">
-                      <AlertTriangle className="w-3.5 h-3.5" />
-                      <span>MASTER TEMPLATE POLICY ALERT</span>
-                    </div>
-                  )}
-
-                  <div className="whitespace-pre-line text-xs sm:text-[13px]">{msg.text}</div>
-
-                  <div
-                    className={`text-[10px] mt-1 font-mono text-right ${
-                      isUser ? 'text-slate-400' : 'text-slate-400'
-                    }`}
-                  >
-                    {msg.timestamp}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-
-          {/* AI Thinking Indicator */}
-          {isAgentThinking && (
-            <div className="flex items-start space-x-2.5 animate-in fade-in">
-              <div className="w-7 h-7 rounded-full bg-rose-50 border border-rose-200 flex items-center justify-center text-[#FF4D6D]">
-                <Bot className="w-3.5 h-3.5 animate-bounce" />
-              </div>
-              <div className="bg-slate-100 border border-slate-200 rounded-2xl rounded-tl-none px-3.5 py-2 text-xs text-[#FF4D6D] flex items-center space-x-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#FF4D6D] animate-ping"></span>
-                <span className="font-mono text-[11px]">
-                  Qri AI validating Master Rules...
-                </span>
-              </div>
+        <div className="flex-1 overflow-auto p-3 sm:p-6 select-text">
+          {q.templateVersion !== undefined && q.templateVersion !== t.version && (
+            <div className="max-w-[794px] mx-auto mb-3 rounded-lg border border-amber-200 bg-amber-50 text-amber-900 text-xs p-2.5 print:hidden">
+              This quotation was started on template version {q.templateVersion}. It now prints with the latest version ({t.version}).
             </div>
           )}
 
-          <div ref={chatBottomRef} />
-        </div>
-
-        {/* Chat Input Area */}
-        <div className="p-3 bg-white border-t border-slate-100 flex flex-col space-y-2 flex-shrink-0">
-          {attachedFileName && (
-            <div className="flex items-center justify-between bg-rose-50 border border-rose-200 text-[#FF4D6D] px-3 py-1 rounded-xl text-xs font-mono">
-              <div className="flex items-center space-x-1.5 truncate">
-                <Paperclip className="w-3 h-3" />
-                <span className="truncate font-semibold text-[11px]">Attached: {attachedFileName}</span>
-              </div>
-              <button
-                onClick={() => setAttachedFileName(null)}
-                className="text-slate-500 hover:text-rose-600 ml-2"
-              >
-                ✕
-              </button>
-            </div>
-          )}
-
-          <div className="flex items-center space-x-1.5">
-            <input
-              type="file"
-              ref={fileInputRef}
-              onChange={handleFileUpload}
-              className="hidden"
-              accept=".pdf,.png,.jpg,.jpeg,.txt,.csv"
-            />
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
-              title="Attach tender PDF or screenshot"
-            >
-              <Paperclip className="w-4 h-4" />
-            </button>
-
-            <input
-              type="text"
-              value={inputPrompt}
-              onChange={(e) => setInputPrompt(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') handleSendMessage();
-              }}
-              placeholder="Tell Qri AI: e.g. 'Add 5 relays with 15% margin'..."
-              className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs sm:text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#FF4D6D] focus:bg-white font-sans"
-            />
-
-            <button
-              onClick={() => handleSendMessage()}
-              disabled={isAgentThinking || (!inputPrompt.trim() && !attachedFileName)}
-              className="p-2 bg-[#FF4D6D] hover:bg-[#FA3B5E] disabled:opacity-40 text-white font-bold rounded-xl shadow-xs cursor-pointer transition-all"
-            >
-              <Send className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      </section>
-
-      {/* =========================================================================
-          MAIN BLANK CANVAS WORKSPACE: PHYSICAL A4 QUOTATION DOCUMENT
-      ========================================================================= */}
-      <main className="flex-1 overflow-y-auto pt-14 pb-16 px-4 flex justify-center bg-transparent relative">
-        {/* THE PHYSICAL A4 PAPER CARD */}
-        <div
-          id="quotation-printable-document"
-          className="w-full max-w-[820px] bg-white text-slate-900 shadow-2xl rounded-sm border border-slate-300 relative min-h-[1100px] text-xs font-sans overflow-hidden transition-all duration-300"
-        >
-          {/* =========================================================================
-              FIXED BACKGROUND LAYER (z-index: 0): Uploaded Letterhead PDF or Corporate Vector
-          ========================================================================= */}
-          <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden select-none">
-            {globalLetterheadPdf ? (
-              <iframe
-                src={`${globalLetterheadPdf}#toolbar=0&navpanes=0&scrollbar=0&view=FitH`}
-                className="w-full h-full border-0 pointer-events-none opacity-90 scale-100"
-                title="Global Letterhead PDF Background"
-              />
-            ) : (
-              /* Corporate Stationery Watermark */
-              <div className="w-full h-full p-8 flex flex-col justify-between pointer-events-none opacity-20">
-                <div className="border-b-2 border-slate-400 pb-4">
-                  <div className="text-xl font-black text-slate-600 tracking-wider">
-                    OOS INDUSTRIAL PROCUREMENT &amp; ENGINEERING
-                  </div>
-                  <div className="text-[10px] text-slate-500 font-medium">
-                    Official Corporate Stationery • Brandreth Road Lahore
-                  </div>
-                </div>
-                <div className="flex items-center justify-center my-auto">
-                  <div className="text-7xl font-black text-slate-300/40 rotate-[-25deg] tracking-widest">
-                    OOS PROCUREMENT
-                  </div>
-                </div>
-                <div className="border-t border-slate-300 pt-3 text-[9px] text-slate-400 flex justify-between">
-                  <span>NTN: 8492019-3 • Official Bank: Meezan Bank Ltd</span>
-                  <span>Lahore • Karachi • Pakistan</span>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* =========================================================================
-              LIVE EDITABLE HTML TEXT OVERLAY LAYER (z-index: 10)
-          ========================================================================= */}
-          <div className="relative z-10 p-6 sm:p-8 flex flex-col justify-between min-h-[1100px]">
-            <div>
-              {/* Header Metadata */}
-              <div className="flex items-start justify-between border-b-2 border-slate-900 pb-4 mb-5">
-                <div>
-                  <h2 className="text-lg font-black tracking-tight text-slate-950 uppercase">
-                    OOS Industrial Procurement &amp; Engineering
-                  </h2>
-                  <p className="text-[10px] text-slate-600 font-medium">
-                    Specialized Automation, Switchgear &amp; Heavy MRO Supplies
-                  </p>
-                  <p className="text-[9px] text-slate-500">
-                    Brandreth Road, Lahore • Tel: +92 42 3722 1199 • quotes@oosprocurement.com
-                  </p>
-                </div>
-
-                <div className="text-right space-y-1">
-                  <div className="inline-block bg-slate-900 text-white px-2.5 py-1 rounded text-[11px] font-mono font-bold tracking-wider">
-                    COMMERCIAL PROPOSAL
-                  </div>
-                  <div className="text-[11px] font-mono font-bold text-slate-800">
-                    REF:{' '}
-                    <span
-                      contentEditable={true}
-                      suppressContentEditableWarning={true}
-                      onBlur={(e) => updateTemplateField('quoteRef', e.currentTarget.textContent || '')}
-                      className="border-b border-dashed border-slate-400 px-1 py-0.5 hover:bg-amber-100/60 focus:bg-amber-100 outline-none rounded cursor-text"
-                    >
-                      {templateState.quoteRef}
-                    </span>
-                  </div>
-                  <div className="text-[10px] text-slate-600 font-mono">
-                    Date:{' '}
-                    <span
-                      contentEditable={true}
-                      suppressContentEditableWarning={true}
-                      onBlur={(e) => updateTemplateField('date', e.currentTarget.textContent || '')}
-                      className="border-b border-dashed border-slate-300 px-1 py-0.5 hover:bg-amber-100/60 focus:bg-amber-100 outline-none rounded cursor-text"
-                    >
-                      {templateState.date}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Client & Commercial Terms Metadata */}
-              <div className="grid grid-cols-2 gap-4 bg-white/90 backdrop-blur-xs border border-slate-200 rounded p-3 mb-5 text-[11px] shadow-xs">
-                {/* Column 1: Client Info */}
-                <div className="space-y-1.5">
-                  <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-                    Client Details:
-                  </div>
-                  <div className="flex items-center space-x-1.5">
-                    <span className="text-slate-500 font-semibold w-16">Customer:</span>
-                    <span
-                      contentEditable={true}
-                      suppressContentEditableWarning={true}
-                      onBlur={(e) => updateTemplateField('clientName', e.currentTarget.textContent || '')}
-                      className="flex-1 font-bold text-slate-900 border-b border-dashed border-slate-400 hover:bg-amber-100/60 focus:bg-amber-100 outline-none px-1 py-0.5 rounded cursor-text min-w-[120px]"
-                    >
-                      {templateState.clientName}
-                    </span>
-                  </div>
-                  <div className="flex items-center space-x-1.5">
-                    <span className="text-slate-500 font-semibold w-16">Attention:</span>
-                    <span
-                      contentEditable={true}
-                      suppressContentEditableWarning={true}
-                      onBlur={(e) => updateTemplateField('clientContact', e.currentTarget.textContent || '')}
-                      className="flex-1 text-slate-800 border-b border-dashed border-slate-300 hover:bg-amber-100/60 focus:bg-amber-100 outline-none px-1 py-0.5 rounded cursor-text min-w-[120px]"
-                    >
-                      {templateState.clientContact}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Column 2: Commercial Terms */}
-                <div className="space-y-1.5">
-                  <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-                    Commercial Terms:
-                  </div>
-                  <div className="flex items-center space-x-1.5">
-                    <span className="text-slate-500 font-semibold w-20">Delivery:</span>
-                    <span
-                      contentEditable={true}
-                      suppressContentEditableWarning={true}
-                      onBlur={(e) => updateTemplateField('deliveryTerms', e.currentTarget.textContent || '')}
-                      className="flex-1 font-medium text-slate-900 border-b border-dashed border-slate-300 hover:bg-amber-100/60 focus:bg-amber-100 outline-none px-1 py-0.5 rounded cursor-text min-w-[100px]"
-                    >
-                      {templateState.deliveryTerms}
-                    </span>
-                  </div>
-                  <div className="flex items-center space-x-1.5">
-                    <span className="text-slate-500 font-semibold w-20">Payment:</span>
-                    <span
-                      contentEditable={true}
-                      suppressContentEditableWarning={true}
-                      onBlur={(e) => updateTemplateField('paymentTerms', e.currentTarget.textContent || '')}
-                      className="flex-1 font-medium text-slate-900 border-b border-dashed border-slate-300 hover:bg-amber-100/60 focus:bg-amber-100 outline-none px-1 py-0.5 rounded cursor-text min-w-[100px]"
-                    >
-                      {templateState.paymentTerms}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Line Items Table */}
-              <div className="mb-5 border border-slate-300 rounded overflow-hidden bg-white/95 backdrop-blur-xs shadow-xs">
-                <table className="w-full border-collapse text-[11px] text-left">
-                  <thead>
-                    <tr className="bg-slate-100 border-b border-slate-300 text-slate-800 font-bold uppercase text-[10px]">
-                      <th className="py-2 px-2.5 w-8 text-center">#</th>
-                      <th className="py-2 px-3">Description &amp; Specifications</th>
-                      <th className="py-2 px-2 w-24">Brand / Model</th>
-                      <th className="py-2 px-2 w-14 text-center">Qty</th>
-                      <th className="py-2 px-2 w-12 text-center">UoM</th>
-                      <th className="py-2 px-2 w-24 text-right">Unit Price (PKR)</th>
-                      <th className="py-2 px-3 w-28 text-right">Total (PKR)</th>
-                      <th className="py-2 px-1 w-6 text-center print:hidden"></th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-200">
-                    {templateState.lineItems.map((item, idx) => (
-                      <tr key={item.id} className="hover:bg-amber-50/50 transition-colors group">
-                        <td className="py-2 px-2 text-center font-mono text-slate-500">{idx + 1}</td>
-                        <td className="py-2 px-3">
-                          <div
-                            contentEditable={true}
-                            suppressContentEditableWarning={true}
-                            onBlur={(e) =>
-                              updateLineItem(item.id, { description: e.currentTarget.textContent || '' })
-                            }
-                            className="font-medium text-slate-900 hover:bg-amber-100/60 focus:bg-amber-100 outline-none p-1 rounded cursor-text"
-                          >
-                            {item.description}
-                          </div>
-                        </td>
-                        <td className="py-2 px-2">
-                          <div
-                            contentEditable={true}
-                            suppressContentEditableWarning={true}
-                            onBlur={(e) =>
-                              updateLineItem(item.id, { partNumber: e.currentTarget.textContent || '' })
-                            }
-                            className="font-mono text-[10px] text-slate-700 hover:bg-amber-100/60 focus:bg-amber-100 outline-none p-1 rounded cursor-text"
-                          >
-                            {item.partNumber || item.brand}
-                          </div>
-                        </td>
-                        <td className="py-2 px-2 text-center">
-                          <div
-                            contentEditable={true}
-                            suppressContentEditableWarning={true}
-                            onBlur={(e) => {
-                              const q = parseInt(e.currentTarget.textContent || '1', 10);
-                              updateLineItem(item.id, { qty: isNaN(q) ? 1 : q });
-                            }}
-                            className="font-mono font-bold text-center hover:bg-amber-100/60 focus:bg-amber-100 outline-none p-1 rounded cursor-text"
-                          >
-                            {item.qty}
-                          </div>
-                        </td>
-                        <td className="py-2 px-2 text-center">
-                          <div
-                            contentEditable={true}
-                            suppressContentEditableWarning={true}
-                            onBlur={(e) =>
-                              updateLineItem(item.id, {
-                                uom: (e.currentTarget.textContent || 'PCS').toUpperCase(),
-                              })
-                            }
-                            className="font-mono text-center uppercase text-[10px] hover:bg-amber-100/60 focus:bg-amber-100 outline-none p-1 rounded cursor-text"
-                          >
-                            {item.uom}
-                          </div>
-                        </td>
-                        <td className="py-2 px-2 text-right font-mono">
-                          <div
-                            contentEditable={true}
-                            suppressContentEditableWarning={true}
-                            onBlur={(e) => {
-                              const p = parseFloat(
-                                (e.currentTarget.textContent || '0').replace(/[^0-9.]/g, '')
-                              );
-                              updateLineItem(item.id, { unitPrice: isNaN(p) ? 0 : p });
-                            }}
-                            className="font-mono font-semibold text-right hover:bg-amber-100/60 focus:bg-amber-100 outline-none p-1 rounded cursor-text"
-                          >
-                            {formatPKR(item.unitPrice)}
-                          </div>
-                        </td>
-                        <td className="py-2 px-3 text-right font-mono font-bold text-slate-900">
-                          {formatPKR(item.total)}
-                        </td>
-                        <td className="py-2 px-1 text-center print:hidden">
-                          <button
-                            onClick={() => removeLineItem(item.id)}
-                            className="text-slate-400 hover:text-rose-600 opacity-0 group-hover:opacity-100 transition-opacity p-0.5 cursor-pointer"
-                            title="Delete row"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Financial Summary & Tax Calculation Box */}
-              <div className="flex justify-end mb-6">
-                <div className="w-72 bg-white/95 backdrop-blur-xs border border-slate-300 rounded p-3 space-y-2 text-[11px] shadow-sm">
-                  <div className="flex justify-between items-center text-slate-700">
-                    <span>Subtotal:</span>
-                    <span className="font-mono font-bold text-slate-900">
-                      PKR {formatPKR(templateState.subtotal)}
-                    </span>
-                  </div>
-
-                  <div className="flex justify-between items-center border-t border-slate-200 pt-2">
-                    <span className="text-slate-600">Sales Tax Regime:</span>
-                    <select
-                      value={templateState.taxMode}
-                      onChange={(e) => updateTemplateField('taxMode', e.target.value as any)}
-                      className="bg-white border border-slate-300 rounded px-1.5 py-0.5 text-[10px] font-semibold text-slate-800 focus:outline-none"
-                    >
-                      <option value="WITHOUT_GST">Without GST (0%)</option>
-                      <option value="GST_18">+18% Sales Tax (GST)</option>
-                    </select>
-                  </div>
-
-                  {templateState.taxMode === 'GST_18' && (
-                    <div className="flex justify-between items-center text-slate-600 text-[10px]">
-                      <span>18% GST Amount:</span>
-                      <span className="font-mono font-semibold text-slate-800">
-                        PKR {formatPKR(templateState.taxAmount)}
-                      </span>
-                    </div>
-                  )}
-
-                  <div className="flex justify-between items-center border-t-2 border-slate-900 pt-2 text-slate-950 font-bold text-sm">
-                    <span>GRAND TOTAL (PKR):</span>
-                    <span className="font-mono font-black text-amber-700 text-base">
-                      PKR {formatPKR(templateState.grandTotal)}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Terms & Conditions */}
-              <div className="border-t border-slate-300 pt-3 text-[10px] text-slate-600 space-y-1.5 bg-white/90 backdrop-blur-xs p-3 rounded shadow-xs">
-                <div className="flex items-center justify-between">
-                  <span className="font-bold uppercase text-slate-800 tracking-wider">
-                    Commercial Terms &amp; Conditions:
-                  </span>
-                  <button
-                    onClick={() => {
-                      const newNotes = [...templateState.notes, 'Custom agreed commercial term.'];
-                      updateTemplateField('notes', newNotes);
-                    }}
-                    className="text-[9px] text-blue-600 hover:underline print:hidden cursor-pointer"
-                  >
-                    + Add T&amp;C Clause
-                  </button>
-                </div>
-                {templateState.notes.map((note, i) => (
-                  <div
-                    key={i}
-                    contentEditable={true}
-                    suppressContentEditableWarning={true}
-                    onBlur={(e) => {
-                      const updated = [...templateState.notes];
-                      updated[i] = e.currentTarget.textContent?.replace(/^•\s*/, '') || '';
-                      updateTemplateField('notes', updated);
-                    }}
-                    className="hover:bg-amber-100/60 focus:bg-amber-100 outline-none p-1 rounded cursor-text leading-relaxed"
-                  >
-                    • {note}
-                  </div>
+          {/* A4 sheet */}
+          <div id="quotation-printable-document" className="mx-auto bg-white shadow-md border border-slate-200 text-slate-900 text-[12px] leading-relaxed w-full max-w-[794px] min-h-[1000px] p-6 sm:p-10 flex flex-col">
+            <div className="flex items-start gap-4 border-b-2 border-slate-800 pb-3 mb-4">
+              {t.letterhead.logoDataUrl && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={t.letterhead.logoDataUrl} alt="Company logo" className="h-14 w-auto" />
+              )}
+              <div>
+                {t.letterhead.lines.map((l, i) => (
+                  <div key={i} className={i === 0 ? 'text-base font-bold' : 'text-[11px] text-slate-600'}>{l}</div>
                 ))}
               </div>
             </div>
 
-            {/* Document Signature Footer */}
-            <div className="border-t border-slate-200 pt-4 mt-8 flex justify-between items-end text-[10px] text-slate-500">
-              <div>
-                <p className="font-bold text-slate-800">For OOS Industrial Procurement</p>
-                <p>Authorized Commercial Signatory</p>
+            <h2 className="text-center font-bold tracking-widest text-sm mb-4">QUOTATION</h2>
+
+            <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 mb-4">
+              <label className="flex items-center gap-2"><span className="font-semibold whitespace-nowrap">Quotation No:</span>
+                <input className={inline} value={q.quoteRef} placeholder={t.refHint || 'type it here'} onChange={(e) => updateTemplateField('quoteRef', e.target.value)} /></label>
+              <label className="flex items-center gap-2"><span className="font-semibold">Date:</span>
+                <input type="date" className={inline} value={q.date} onChange={(e) => updateTemplateField('date', e.target.value)} /></label>
+              <label className="flex items-center gap-2"><span className="font-semibold">To:</span>
+                <input className={inline} value={q.clientName} placeholder="client name" onChange={(e) => updateTemplateField('clientName', e.target.value)} /></label>
+              <label className="flex items-center gap-2"><span className="font-semibold whitespace-nowrap">Attention:</span>
+                <input className={inline} value={q.clientContact} placeholder="contact person" onChange={(e) => updateTemplateField('clientContact', e.target.value)} /></label>
+              <label className="flex items-center gap-2"><span className="font-semibold">Delivery:</span>
+                <input className={inline} value={q.deliveryTerms} onChange={(e) => updateTemplateField('deliveryTerms', e.target.value)} /></label>
+              <label className="flex items-center gap-2"><span className="font-semibold">Payment:</span>
+                <input className={inline} value={q.paymentTerms} onChange={(e) => updateTemplateField('paymentTerms', e.target.value)} /></label>
+              <label className="flex items-center gap-2"><span className="font-semibold whitespace-nowrap">Valid for (days):</span>
+                <input type="number" min={0} className={inline} value={q.validityDays || ''} onChange={(e) => updateTemplateField('validityDays', Number(e.target.value) || 0)} /></label>
+            </div>
+
+            <table className="w-full border-collapse mb-2">
+              <thead>
+                <tr>
+                  <th className={`${th} w-6`}>#</th>
+                  <th className={th}>Description</th>
+                  <th className={`${th} w-24`}>Brand / Model</th>
+                  <th className={`${th} w-14`}>Qty</th>
+                  <th className={`${th} w-14`}>Unit</th>
+                  <th className={`${th} w-24 text-right`}>Unit price</th>
+                  <th className={`${th} w-28 text-right`}>Total</th>
+                  <th className={`${th} w-6 print:hidden`}></th>
+                </tr>
+              </thead>
+              <tbody>
+                {q.lineItems.length === 0 && (
+                  <tr><td colSpan={8} className="py-6 text-center text-slate-400 italic print:hidden">No items yet. Ask the assistant on the right, or press “Add item” below.</td></tr>
+                )}
+                {q.lineItems.map((l, i) => {
+                  const priceEditable = canSeeCosts || !(l.unitCost > 0);
+                  return (
+                    <tr key={l.id} className="border-b border-slate-200 align-top">
+                      <td className="py-1.5 px-1.5 text-slate-500">{i + 1}</td>
+                      <td className="py-1 px-1"><input className={inline} value={l.description} placeholder="description" onChange={(e) => updateLineItem(l.id, { description: e.target.value })} /></td>
+                      <td className="py-1 px-1"><input className={inline} value={[l.brand, l.partNumber].filter(Boolean).join(' ')} onChange={(e) => updateLineItem(l.id, { brand: e.target.value, partNumber: '' })} /></td>
+                      <td className="py-1 px-1"><input type="number" min={0} className={inline} value={l.qty || ''} onChange={(e) => updateLineItem(l.id, { qty: Number(e.target.value) || 0 })} /></td>
+                      <td className="py-1 px-1"><input className={inline} value={l.uom} onChange={(e) => updateLineItem(l.id, { uom: e.target.value.toUpperCase() })} /></td>
+                      <td className="py-1 px-1 text-right">
+                        {priceEditable ? (
+                          <input type="number" min={0} className={`${inline} text-right`} value={l.unitPrice || ''} onChange={(e) => updateLineItem(l.id, { unitPrice: Number(e.target.value) || 0 })} />
+                        ) : (
+                          <span className="font-mono">{formatPKR(l.unitPrice)}</span>
+                        )}
+                      </td>
+                      <td className="py-1.5 px-1.5 text-right font-mono font-semibold">{formatPKR(l.total)}</td>
+                      <td className="py-1 px-1 print:hidden"><button onClick={() => removeLineItem(l.id)} title="Remove this item" className="text-slate-300 hover:text-red-600 cursor-pointer"><Trash2 className="w-3.5 h-3.5" /></button></td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            <button onClick={addLineItem} className="self-start inline-flex items-center gap-1 text-[11px] font-semibold text-slate-600 hover:text-black mb-3 print:hidden cursor-pointer"><Plus className="w-3 h-3" /> Add item</button>
+
+            <div className="self-end text-right mb-1">
+              <div className="font-bold text-sm">Total ({q.currency}): <span className="font-mono">{formatPKR(q.grandTotal)}</span></div>
+              <div className="text-[11px] text-slate-600">{t.taxStatement}</div>
+            </div>
+
+            {(q.notes.length > 0) && (
+              <div className="mt-3">
+                <div className="font-bold mb-1">Additional terms for this quotation</div>
+                <ul className="list-disc pl-4 space-y-0.5">
+                  {q.notes.map((n, i) => (
+                    <li key={i}>{n} <button onClick={() => updateTemplateField('notes', q.notes.filter((_, j) => j !== i))} className="text-slate-300 hover:text-red-600 ml-1 print:hidden cursor-pointer" title="Remove"><XCircle className="w-3 h-3 inline" /></button></li>
+                  ))}
+                </ul>
               </div>
-              <div className="text-right font-mono">
-                Page 1 of 1 • Generated via Qri OS
+            )}
+
+            {t.terms.filter((x) => x.trim()).length > 0 && (
+              <div className="mt-4">
+                <div className="font-bold mb-1">Terms &amp; Conditions</div>
+                <ol className="list-decimal pl-4 space-y-0.5">
+                  {t.terms.filter((x) => x.trim()).map((x, i) => <li key={i}>{x}</li>)}
+                </ol>
+              </div>
+            )}
+
+            <div className="mt-6">
+              <div>Regards,</div>
+              {t.signatory.company && <div className="font-semibold">For {t.signatory.company}</div>}
+              <div className="mt-8 font-semibold">{t.signatory.name}</div>
+              <div className="text-slate-600">{t.signatory.designation}</div>
+            </div>
+
+            <div className="flex-1" />
+            {t.letterhead.footerLines.length > 0 && (
+              <div className="border-t border-slate-300 mt-6 pt-2 text-[10px] text-slate-500 text-center">
+                {t.letterhead.footerLines.map((l, i) => <div key={i}>{l}</div>)}
+              </div>
+            )}
+          </div>
+
+          {/* Internal pricing (never printed) */}
+          {canSeeCosts && q.lineItems.length > 0 && (
+            <div className="max-w-[794px] mx-auto mt-4 bg-white border border-slate-200 rounded-xl p-4 print:hidden">
+              <div className="text-xs font-bold text-slate-700 mb-0.5">Pricing details — internal, not printed</div>
+              <p className="text-[11px] text-slate-500 mb-2">Cost and margin are only visible to people allowed to change margins.</p>
+              <table className="w-full text-xs">
+                <thead><tr className="text-left text-slate-500"><th className="py-1">Item</th><th>Cost (each)</th><th>Margin %</th><th className="text-right">Price (each)</th></tr></thead>
+                <tbody>
+                  {q.lineItems.map((l, i) => (
+                    <tr key={l.id} className="border-t border-slate-100">
+                      <td className="py-1.5 pr-2 truncate max-w-[220px]">{i + 1}. {l.description || '—'}</td>
+                      <td><input type="number" min={0} className="w-24 border border-slate-200 rounded px-1.5 py-0.5" value={l.unitCost || ''} onChange={(e) => updateLineItem(l.id, { unitCost: Number(e.target.value) || 0 })} /></td>
+                      <td><input type="number" min={0} className="w-16 border border-slate-200 rounded px-1.5 py-0.5" value={l.marginPct || ''} onChange={(e) => updateLineItem(l.id, { marginPct: Number(e.target.value) || 0 })} /></td>
+                      <td className="text-right font-mono">{formatPKR(l.unitPrice)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ═════ RIGHT: checks + assistant ═════ */}
+      <aside className={`${tab === 'assistant' ? 'flex' : 'hidden'} lg:flex w-full lg:w-[400px] flex-shrink-0 flex-col bg-white border-l border-slate-200 min-h-0 print:hidden`}>
+        <div className="p-4 border-b border-slate-200">
+          <div className="text-xs font-bold text-slate-700 mb-2">Before you download</div>
+          {checks.length === 0 ? (
+            <div className="flex items-center gap-2 text-sm text-emerald-700 font-semibold"><CheckCircle2 className="w-4 h-4" /> Everything looks complete.</div>
+          ) : (
+            <ul className="space-y-1.5 max-h-40 overflow-y-auto">
+              {checks.map((c, i) => (
+                <li key={i} className={`flex gap-2 text-xs rounded-lg px-2.5 py-1.5 ${c.severity === 'block' ? 'bg-red-50 text-red-800' : 'bg-amber-50 text-amber-900'}`}>
+                  {c.severity === 'block' ? <XCircle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" /> : <AlertTriangle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />}
+                  <span>{c.message}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+          {checks.length > 0 && <p className="text-[11px] text-slate-500 mt-2">Red items must be fixed before downloading. Amber items are worth a second look.</p>}
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-4 space-y-3 min-h-0">
+          {chatMessages.length === 0 && !thinking && (
+            <div className="text-sm text-slate-600">
+              <p className="font-semibold text-slate-900 mb-1">Tell me what to put on the quotation.</p>
+              <p className="text-xs mb-3">I only use prices from your Data Bank or ones you type. If something is missing, I will ask. Tap an example to start, then fill in the brackets.</p>
+              <div className="flex flex-col gap-1.5">
+                {STARTERS.map((s) => (
+                  <button key={s} onClick={() => setInput(s)} className="text-left text-xs px-3 py-2 rounded-xl border border-slate-200 hover:border-[#FF4D6D] hover:bg-rose-50/40 text-slate-700 cursor-pointer">{s}</button>
+                ))}
               </div>
             </div>
-          </div>
+          )}
+          {chatMessages.map((m) => (
+            <div key={m.id} className={m.sender === 'user' ? 'flex justify-end' : 'flex justify-start'}>
+              <div className={`max-w-[88%] rounded-2xl px-3.5 py-2.5 text-[13px] whitespace-pre-line ${m.sender === 'user' ? 'bg-slate-900 text-white' : m.systemLog === 'error' ? 'bg-red-50 text-red-800 border border-red-200' : 'bg-slate-100 text-slate-900'}`}>
+                {m.text}
+                {m.id === lastChangedId && canUndo && (
+                  <button onClick={undoQuote} className="mt-2 inline-flex items-center gap-1 text-[11px] font-semibold text-[#FF4D6D] hover:underline cursor-pointer"><Undo2 className="w-3 h-3" /> Undo this change</button>
+                )}
+              </div>
+            </div>
+          ))}
+          {thinking && <div className="text-xs text-slate-500 animate-pulse">Working on it…</div>}
+          <div ref={feedEnd} />
         </div>
-      </main>
+
+        <form onSubmit={(e) => { e.preventDefault(); void send(); }} className="p-3 border-t border-slate-200 flex gap-2 items-end">
+          <textarea
+            rows={2}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void send(); } }}
+            placeholder="Type what to add or change…"
+            maxLength={1500}
+            className="flex-1 resize-none border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#FF4D6D]"
+          />
+          <button type="submit" disabled={thinking || !input.trim()} className="p-3 rounded-xl bg-[#FF4D6D] hover:bg-[#FA3B5E] text-white disabled:opacity-40 cursor-pointer" title="Send"><Send className="w-4 h-4" /></button>
+        </form>
+      </aside>
     </div>
   );
 }
 
-export default function QuotationAgentPage() {
+export default function QuotationPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="flex-1 flex items-center justify-center bg-transparent text-slate-400 font-mono text-xs">
-          Loading Quotation Agent Workspace...
-        </div>
-      }
-    >
-      <QuotationAgentContent />
+    <Suspense fallback={<div className="p-6 text-sm text-slate-500">Loading…</div>}>
+      <QuotationContent />
     </Suspense>
   );
 }
