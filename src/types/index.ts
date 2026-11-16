@@ -69,6 +69,7 @@ export interface QuotationTemplate {
   taxAmount: number;
   grandTotal: number;
   notes: string[];
+  terms?: string[]; // this quote's own copy of the standing terms; the maker may edit or remove them. Starts as the company's standard terms.
 }
 
 export interface QuotationCase {

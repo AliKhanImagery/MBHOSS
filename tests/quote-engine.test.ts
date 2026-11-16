@@ -112,3 +112,14 @@ test('checks: blocking items and rule-driven warnings', () => {
   assert.ok(codes.includes('low_margin') && codes.includes('long_validity') && codes.includes('long_credit'));
   assert.ok(!checkQuote(q, rules).some((c) => c.severity === 'warn' && ['low_margin', 'long_validity', 'long_credit'].includes(c.code)));
 });
+
+test('terms can be reworded and removed for one quote, nothing else changes', async () => {
+  const { applyOps, blankQuote } = await import('../src/lib/quote-engine');
+  const rules = { defaultMarginPct: null, minMarginPct: null, defaultValidityDays: null, maxValidityDays: null, maxCreditDays: null };
+  const q0 = blankQuote(rules, 1, ['Prices in PKR.', 'Delivery: 2-3 weeks.', 'Force majeure applies.']);
+  const out = applyOps(q0, [{ op: 'edit_term', index: 1, text: 'Delivery: 4-5 weeks.' }, { op: 'remove_term', index: 2 }], { dataBank: [], rules, instruction: '' });
+  assert.deepEqual(out.quote.terms, ['Prices in PKR.', 'Delivery: 4-5 weeks.']);
+  assert.deepEqual(q0.terms, ['Prices in PKR.', 'Delivery: 2-3 weeks.', 'Force majeure applies.']); // original untouched
+  const bad = applyOps(q0, [{ op: 'remove_term', index: 9 }, { op: 'edit_term', index: 0, text: '  ' }], { dataBank: [], rules, instruction: '' });
+  assert.equal(bad.results.filter((r) => r.status === 'rejected').length, 2);
+});

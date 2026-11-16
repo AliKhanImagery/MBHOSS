@@ -46,7 +46,9 @@ export type QuoteOp =
   | { op: 'set_all_margins'; marginPct: number }
   | { op: 'remove_line'; lineId: string }
   | { op: 'add_extra_term'; text: string }
-  | { op: 'remove_extra_term'; index: number };
+  | { op: 'remove_extra_term'; index: number }
+  | { op: 'edit_term'; index: number; text: string }
+  | { op: 'remove_term'; index: number };
 
 export interface ApplyContext {
   dataBank: DataBankItem[];
@@ -128,8 +130,9 @@ export function recalc(q: QuotationTemplate): QuotationTemplate {
 }
 
 /** A fresh, empty quote. Nothing but the date and (optional) default validity is pre-filled. */
-export function blankQuote(rules: TemplateRules | null, templateVersion?: number): QuotationTemplate {
+export function blankQuote(rules: TemplateRules | null, templateVersion?: number, terms?: string[]): QuotationTemplate {
   return {
+    ...(terms ? { terms: [...terms] } : {}),
     templateVersion,
     quoteRef: '',
     date: new Date().toISOString().split('T')[0],
@@ -156,6 +159,7 @@ export function applyOps(start: QuotationTemplate, ops: QuoteOp[], ctx: ApplyCon
     ...start,
     lineItems: start.lineItems.map((l) => ({ ...l })),
     notes: [...start.notes],
+    ...(start.terms ? { terms: [...start.terms] } : {}),
   };
   const results: OpResult[] = [];
   const changes: string[] = [];
@@ -386,6 +390,23 @@ export function applyOps(start: QuotationTemplate, ops: QuoteOp[], ctx: ApplyCon
         return done(i, 'remove_extra_term', `Removed the extra term "${removed}".`);
       }
 
+      case 'edit_term': {
+        const terms = q.terms ?? [];
+        const text = clean(op.text, 300);
+        if (!Number.isInteger(op.index) || op.index < 0 || op.index >= terms.length) return reject(i, 'edit_term', 'There is no term at that position.');
+        if (!text) return reject(i, 'edit_term', 'The new wording was empty.');
+        const before = terms[op.index];
+        q.terms = terms.map((t, j) => (j === op.index ? text : t));
+        return done(i, 'edit_term', `Changed term ${op.index + 1} from "${before}" to "${text}".`);
+      }
+
+      case 'remove_term': {
+        const terms = q.terms ?? [];
+        if (!Number.isInteger(op.index) || op.index < 0 || op.index >= terms.length) return reject(i, 'remove_term', 'There is no term at that position.');
+        q.terms = terms.filter((_, j) => j !== op.index);
+        return done(i, 'remove_term', `Removed term ${op.index + 1} ("${terms[op.index]}") from this quote.`);
+      }
+
       default:
         return reject(i, String((op as { op?: unknown })?.op ?? 'unknown'), 'That action is not supported.');
     }
@@ -465,6 +486,7 @@ export function summarizeQuote(q: QuotationTemplate, forModel = false): string {
     `Payment: ${q.paymentTerms || '(not set)'}`,
     `Validity days: ${q.validityDays || '(not set)'}`,
     `Items:\n${lines}`,
+    ...(q.terms ? [`Terms and conditions on this quote:\n${q.terms.length ? q.terms.map((t, i) => `  [${i}] ${t}`).join('\n') : '  (none)'}`] : []),
     `Extra terms: ${q.notes.length ? q.notes.map((n, i) => `[${i}] ${n}`).join(' | ') : '(none)'}`,
     ...(forModel ? [] : [`Grand total: ${q.grandTotal} (excludes GST and taxes)`]),
   ].join('\n');
