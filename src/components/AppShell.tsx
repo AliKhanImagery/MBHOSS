@@ -26,7 +26,7 @@ import { authLinkType } from '@/lib/supabase';
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { currentUser, logout, cloudStatus, refreshFromCloud, authLoading } = useApp();
+  const { currentUser, logout, activeCases, cloudStatus, refreshFromCloud, authLoading } = useApp();
 
   // Invite and password-reset links must land on the set-password screen, not the app
   useEffect(() => {
