@@ -1,6 +1,7 @@
 'use client';
 
 import { ChromeProvider, useChrome } from '@/components/ChromeContext';
+import { Onboarding, TOUR_EVENT } from '@/components/Onboarding';
 import React, { useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
@@ -18,7 +19,7 @@ import {
   Bell,
   RefreshCw,
   Send,
-  ArrowLeft,
+  ArrowLeft, HelpCircle,
 } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { AUTH_ENABLED } from '@/lib/auth-config';
@@ -124,6 +125,7 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex flex-col md:flex-row h-[100dvh] w-screen overflow-hidden bg-[#F4F5F7] text-slate-900 select-none">
+      <Onboarding />
       {/* =========================================================================
           1. MINIMALIST LEFT SIDE NAVIGATION RAIL (Full Height, Edge-to-Edge)
       ========================================================================= */}
@@ -190,6 +192,13 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
             title="Notifications"
           >
             <Bell className="w-[18px] h-[18px]" />
+          </button>
+          <button
+            onClick={() => window.dispatchEvent(new Event(TOUR_EVENT))}
+            className="w-10 h-10 rounded-2xl flex items-center justify-center text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
+            title="Take the quick tour"
+          >
+            <HelpCircle className="w-[18px] h-[18px]" />
           </button>
           <div
             className="w-10 h-10 rounded-full bg-slate-900 text-white font-bold text-xs flex items-center justify-center cursor-default"
