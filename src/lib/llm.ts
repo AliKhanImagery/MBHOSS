@@ -91,6 +91,8 @@ export function anthropicProvider(apiKey: string, model: string): LlmProvider {
   };
 }
 
+export const DEFAULT_GEMINI_MODELS = ['gemini-3.5-flash-lite', 'gemini-3.6-flash', 'gemini-2.5-flash', 'gemini-2.5-flash-lite'];
+
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /**
@@ -116,13 +118,17 @@ export function geminiProvider(apiKey: string, models: string[]): LlmProvider {
                   { text: m.content },
                 ],
               })),
-              generationConfig: {
-                temperature: 0,
-                responseMimeType: 'application/json',
-                maxOutputTokens: 1024,
-                // Short structured edits do not need long "thinking"; this keeps replies fast and light on quota.
-                ...(/^gemini-2\.5-flash/.test(model) ? { thinkingConfig: { thinkingBudget: 0 } } : {}),
-              },
+              generationConfig: /^gemini-[3-9]/.test(model)
+                // Gemini 3+: temperature is deprecated (and will be rejected), thinking is set by the model's own
+                // default level, and thinking tokens may share the output budget, so leave generous room.
+                ? { responseMimeType: 'application/json', maxOutputTokens: 4096 }
+                : {
+                    temperature: 0,
+                    responseMimeType: 'application/json',
+                    maxOutputTokens: 1024,
+                    // Short structured edits do not need long "thinking"; this keeps replies fast and light on quota.
+                    ...(/^gemini-2\.5-flash/.test(model) ? { thinkingConfig: { thinkingBudget: 0 } } : {}),
+                  },
             }
           )) as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
           const text = (data.candidates?.[0]?.content?.parts ?? []).map((p) => p.text ?? '').join('');
@@ -149,10 +155,9 @@ export function geminiProvider(apiKey: string, models: string[]): LlmProvider {
  */
 export function providerFromEnv(env: Record<string, string | undefined> = process.env): LlmProvider {
   const gKey = env.GEMINI_API_KEY || env.GOOGLE_API_KEY;
-  const models = (env.GEMINI_MODELS || env.GEMINI_MODEL || 'gemini-2.5-flash,gemini-2.5-flash-lite')
-    .split(',')
-    .map((m) => m.trim())
-    .filter(Boolean);
+  // Models the owner listed come first; the built-in list follows, so a retired model in the settings
+  // (Google stops offering older models to new keys) never leaves the assistant without a working one.
+  const models = [...new Set([...(env.GEMINI_MODELS || env.GEMINI_MODEL || '').split(','), ...DEFAULT_GEMINI_MODELS].map((m) => m.trim()).filter(Boolean))];
   const preferClaude = env.AI_PROVIDER === 'anthropic';
 
   if (preferClaude && env.ANTHROPIC_API_KEY) return anthropicProvider(env.ANTHROPIC_API_KEY, env.ANTHROPIC_MODEL || 'claude-sonnet-5-5');
