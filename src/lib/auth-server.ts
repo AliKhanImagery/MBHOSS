@@ -3,6 +3,7 @@
 import type { NextRequest } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { AUTH_ENABLED } from './auth-config';
+import { supabaseConfig } from './supabase-config';
 
 export type AuthResult = { ok: true; email: string | null } | { ok: false; status: number; error: string };
 
@@ -12,9 +13,7 @@ export async function requireSession(req: NextRequest): Promise<AuthResult> {
   const token = req.headers.get('authorization')?.match(/^Bearer\s+(.+)$/i)?.[1];
   if (!token) return { ok: false, status: 401, error: 'Please sign in again.' };
 
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !anon) return { ok: false, status: 500, error: 'Sign-in is switched on but the database settings are missing.' };
+  const { url, anonKey: anon } = supabaseConfig();
 
   const client = createClient(url, anon, { global: { headers: { Authorization: `Bearer ${token}` } }, auth: { persistSession: false } });
   const { data, error } = await client.auth.getUser(token);
