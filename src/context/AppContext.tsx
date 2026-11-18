@@ -13,6 +13,7 @@ import {
 } from '@/types';
 import { blankQuote, recalc } from '@/lib/quote-engine';
 import type { TemplateDraft } from '@/lib/docx-template';
+import { MASTER_FILE_MARK } from '@/lib/quote-master';
 import {
   fetchDatabankFromCloud,
   syncDatabankItemToCloud,
@@ -210,18 +211,26 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [officeTemplate, setOfficeTemplate] = useState<OfficeTemplate | null>(() => readJson<OfficeTemplate>(OFFICE_LS_KEY));
 
   const persistOfficeLocally = (t: OfficeTemplate) => {
-    if (!writeJson(OFFICE_LS_KEY, t)) {
-      // Large letterhead PDFs can exceed browser storage; keep everything else.
-      writeJson(OFFICE_LS_KEY, { ...t, letterhead: { ...t.letterhead, backgroundPdfDataUrl: null } });
-    }
+    if (writeJson(OFFICE_LS_KEY, t)) return;
+    // Large files can exceed browser storage. Drop the letterhead PDF first, then the Word master
+    // (the cloud copy keeps it and it is fetched again on the next sync).
+    const noPdf = { ...t, letterhead: { ...t.letterhead, backgroundPdfDataUrl: null } };
+    if (writeJson(OFFICE_LS_KEY, noPdf)) return;
+    const { masterDocxBase64, ...noMaster } = noPdf;
+    void masterDocxBase64;
+    writeJson(OFFICE_LS_KEY, noMaster);
   };
 
   const pushOfficeToCloud = (t: OfficeTemplate): Promise<boolean> => {
-    const lite: OfficeTemplate = { ...t, letterhead: { ...t.letterhead, backgroundPdfDataUrl: null } };
+    // The big files travel in their own column, not inside the JSON. The approved Word file uses the
+    // same column as the letterhead PDF, told apart by a marker in the file name (no database change).
+    const { masterDocxBase64, ...rest } = t;
+    const lite: OfficeTemplate = { ...rest, letterhead: { ...t.letterhead, backgroundPdfDataUrl: null } };
+    const hasMaster = !!masterDocxBase64;
     return syncTemplateSettingsToCloud(
       OFFICE_PREFIX + JSON.stringify(lite),
-      t.letterhead.backgroundPdfName,
-      t.letterhead.backgroundPdfDataUrl
+      hasMaster ? MASTER_FILE_MARK + t.sourceDocName : t.letterhead.backgroundPdfName,
+      hasMaster ? masterDocxBase64 : t.letterhead.backgroundPdfDataUrl
     );
   };
 
@@ -265,12 +274,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           const cloudTpl = JSON.parse(cloudSettings.masterRules.slice(OFFICE_PREFIX.length)) as OfficeTemplate;
           const local = readJson<OfficeTemplate>(OFFICE_LS_KEY);
           if (!local || cloudTpl.version >= local.version) {
+            const cloudHasMaster = cloudSettings.letterheadFileName.startsWith(MASTER_FILE_MARK) && !!cloudSettings.letterheadPdfBase64;
             const merged: OfficeTemplate = {
               ...cloudTpl,
               letterhead: {
                 ...cloudTpl.letterhead,
-                backgroundPdfDataUrl: cloudSettings.letterheadPdfBase64 ?? local?.letterhead.backgroundPdfDataUrl ?? null,
+                backgroundPdfDataUrl: cloudHasMaster ? null : cloudSettings.letterheadPdfBase64 ?? local?.letterhead.backgroundPdfDataUrl ?? null,
               },
+              ...(cloudHasMaster ? { masterDocxBase64: cloudSettings.letterheadPdfBase64 as string } : {}),
             };
             setOfficeTemplate(merged);
             persistOfficeLocally(merged);

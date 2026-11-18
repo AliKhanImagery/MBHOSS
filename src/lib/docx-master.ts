@@ -401,3 +401,51 @@ export async function fillMaster(master: ArrayBuffer | Uint8Array, data: FillDat
   zip.file('word/document.xml', new XMLSerializer().serializeToString(doc as never));
   return { bytes: await zip.generateAsync({ type: 'uint8array', compression: 'DEFLATE' }) };
 }
+
+// ─── helpers for the on-screen PREVIEW only (the downloaded file never goes through these) ───
+
+/** The browser preview drops Word "fields" such as the page count. Show their text instead. */
+export async function previewCopy(bytes: Uint8Array): Promise<Uint8Array> {
+  const zip = await JSZip.loadAsync(bytes);
+  const { doc } = await loadDoc(zip);
+  for (const f of all(doc, 'fldSimple')) {
+    const parent = f.parentNode;
+    if (!parent) continue;
+    for (const c of Array.from(f.childNodes)) parent.insertBefore(c, f);
+    parent.removeChild(f);
+  }
+  zip.file('word/document.xml', new XMLSerializer().serializeToString(doc as never));
+  return zip.generateAsync({ type: 'uint8array', compression: 'DEFLATE' });
+}
+
+export interface HeaderImagePlacement { leftPx: number; topPx: number; widthPx: number; heightPx: number }
+
+/** Where the header picture (the logo) sits on the page, in screen pixels at 96 dpi. */
+export async function readHeaderImagePlacement(bytes: Uint8Array): Promise<HeaderImagePlacement | null> {
+  const zip = await JSZip.loadAsync(bytes);
+  const h = zip.file('word/header1.xml');
+  const d = zip.file('word/document.xml');
+  if (!h || !d) return null;
+  const hdoc = new DOMParser().parseFromString(await h.async('string'), 'text/xml') as unknown as Document;
+  const anchor = Array.from(hdoc.getElementsByTagName('wp:anchor'))[0];
+  if (!anchor) return null;
+  const first = (n: Element, tag: string) => Array.from(n.getElementsByTagName(tag))[0] as Element | undefined;
+  const posH = first(anchor, 'wp:positionH');
+  const posV = first(anchor, 'wp:positionV');
+  const ext = first(anchor, 'wp:extent');
+  if (!posH || !posV || !ext) return null;
+  const emu = (v: string | null | undefined) => (Number(v) || 0) / 9525;
+  const ddoc = new DOMParser().parseFromString(await d.async('string'), 'text/xml') as unknown as Document;
+  const mar = Array.from(ddoc.getElementsByTagNameNS(W, 'pgMar'))[0];
+  const tw = (a: string) => ((Number(mar?.getAttributeNS(W, a) ?? mar?.getAttribute(`w:${a}`)) || 0) / 1440) * 96;
+  const hRel = posH.getAttribute('relativeFrom');
+  const vRel = posV.getAttribute('relativeFrom');
+  const baseLeft = hRel === 'page' ? 0 : tw('left');
+  const baseTop = vRel === 'page' ? 0 : vRel === 'margin' ? tw('top') : tw('header'); // "paragraph": the header starts at the header distance
+  return {
+    leftPx: baseLeft + emu(first(posH, 'wp:posOffset')?.textContent),
+    topPx: baseTop + emu(first(posV, 'wp:posOffset')?.textContent),
+    widthPx: emu(ext.getAttribute('cx')),
+    heightPx: emu(ext.getAttribute('cy')),
+  };
+}

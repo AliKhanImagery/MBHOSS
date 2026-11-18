@@ -4,6 +4,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import { FileCog, Upload, CheckCircle2, AlertTriangle, Trash2, Plus, Lock, FileText, Info } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { DEFAULT_TAX_STATEMENT, extractOfficeTemplate, type TemplateDraft } from '@/lib/docx-template';
+import { readMasterDefaults } from '@/lib/docx-master';
+import { bytesToBase64 } from '@/lib/quote-master';
 import type { OfficeTemplate, TemplateRules } from '@/types';
 
 const EMPTY_RULES: TemplateRules = {
@@ -112,10 +114,33 @@ export default function TemplateSettingsPage() {
     }
     setBusy(true);
     try {
-      const out = await extractOfficeTemplate(await file.arrayBuffer(), file.name);
+      const bytes = await file.arrayBuffer();
+      const out = await extractOfficeTemplate(bytes, file.name);
+      const findings = [...out.findings];
+      // The Word file itself becomes the master, so downloaded quotations are exactly this document.
+      let masterPart: Partial<TemplateDraft> = {};
+      try {
+        const md = await readMasterDefaults(bytes);
+        if (md.problems.length === 0) {
+          masterPart = {
+            masterDocxBase64: bytesToBase64(new Uint8Array(bytes)),
+            master: { greeting: md.greeting, intro: md.intro, dateFormat: md.dateFormat, pagesDigits: md.pagesDigits },
+            ...(md.terms.length ? { terms: md.terms } : {}),
+          };
+          findings.unshift('Your Word file will be used as the master. Quotations are made by filling values into a copy of it. The letterhead, footer, fonts and table styling are never changed.');
+        } else {
+          findings.unshift('This Word file could not be used as an exact master, so quotations will be an approximation of it:', ...md.problems);
+        }
+      } catch {
+        findings.unshift('This Word file could not be used as an exact master, so quotations will be an approximation of it.');
+      }
       // keep the limits the admin already set
-      setDraft((prev) => ({ ...out.draft, rules: prev?.rules ?? out.draft.rules }));
-      setFindings(out.findings);
+      setDraft((prev) => {
+        const next: TemplateDraft = { ...out.draft, ...masterPart, rules: prev?.rules ?? out.draft.rules };
+        if (!masterPart.masterDocxBase64) { delete next.masterDocxBase64; delete next.master; }
+        return next;
+      });
+      setFindings(findings);
       setDirty(true);
       setResult(null);
     } catch (err) {
@@ -133,9 +158,11 @@ export default function TemplateSettingsPage() {
 
   const problems: string[] = [];
   if (draft) {
-    const hasLetterhead = draft.letterhead.lines.length > 0 || !!draft.letterhead.logoDataUrl;
-    if (!hasLetterhead) problems.push('Add the company letterhead (company name and address, or a logo).');
-    if (!draft.signatory.name.trim()) problems.push('Add the name of the person who signs quotations.');
+    if (!draft.masterDocxBase64) {
+      const hasLetterhead = draft.letterhead.lines.length > 0 || !!draft.letterhead.logoDataUrl;
+      if (!hasLetterhead) problems.push('Add the company letterhead (company name and address, or a logo).');
+      if (!draft.signatory.name.trim()) problems.push('Add the name of the person who signs quotations.');
+    }
     const r = draft.rules;
     if (r.minMarginPct !== null && r.defaultMarginPct !== null && r.defaultMarginPct < r.minMarginPct) {
       problems.push('The default margin is lower than the minimum margin.');
@@ -229,6 +256,12 @@ export default function TemplateSettingsPage() {
               <section className="bg-white border border-slate-200 rounded-2xl p-5 space-y-4">
                 <h2 className="font-bold text-slate-900 text-sm">Step 2 · Check what was copied</h2>
 
+                {d.masterDocxBase64 ? (
+                  <div className="rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-900 text-xs p-3">
+                    <b>Letterhead, footer and signature come from your Word file</b> and are used exactly as they are. They cannot be edited here, so nobody can change them by accident.
+                  </div>
+                ) : (
+                  <>
                 <div>
                   <label className={label}>Letterhead (one line each — company name first)</label>
                   <textarea rows={3} className={field} value={d.letterhead.lines.join('\n')} onChange={(e) => edit((x) => ({ ...x, letterhead: { ...x.letterhead, lines: lines(e.target.value) } }))} />
@@ -248,6 +281,9 @@ export default function TemplateSettingsPage() {
                   <textarea rows={2} className={field} value={d.letterhead.footerLines.join('\n')} onChange={(e) => edit((x) => ({ ...x, letterhead: { ...x.letterhead, footerLines: lines(e.target.value) } }))} />
                 </div>
 
+                  </>
+                )}
+
                 <div>
                   <label className={label}>Standard terms &amp; conditions (printed on every quote, in this order)</label>
                   <div className="space-y-2">
@@ -262,11 +298,13 @@ export default function TemplateSettingsPage() {
                   </div>
                 </div>
 
+                {!d.masterDocxBase64 && (
                 <div className="grid sm:grid-cols-3 gap-3">
                   <div><label className={label}>Signing company</label><input className={field} value={d.signatory.company} onChange={(e) => edit((x) => ({ ...x, signatory: { ...x.signatory, company: e.target.value } }))} /></div>
                   <div><label className={label}>Signatory name</label><input className={field} value={d.signatory.name} onChange={(e) => edit((x) => ({ ...x, signatory: { ...x.signatory, name: e.target.value } }))} /></div>
                   <div><label className={label}>Designation</label><input className={field} value={d.signatory.designation} onChange={(e) => edit((x) => ({ ...x, signatory: { ...x.signatory, designation: e.target.value } }))} /></div>
                 </div>
+                )}
 
                 <div className="grid sm:grid-cols-2 gap-3">
                   <div>

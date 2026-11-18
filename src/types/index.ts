@@ -69,6 +69,9 @@ export interface QuotationTemplate {
   taxAmount: number;
   grandTotal: number;
   notes: string[];
+  subject?: string; // Word-master quotes: the SUBJECT line (never taken from the sample)
+  greeting?: string; // Word-master quotes: undefined = keep the master's greeting
+  intro?: string; // Word-master quotes: undefined = keep the master's opening paragraph
   terms?: string[]; // this quote's own copy of the standing terms; the maker may edit or remove them. Starts as the company's standard terms.
 }
 
@@ -170,6 +173,9 @@ export interface OfficeTemplate {
   refHint: string; // free-text hint for the quote number format, e.g. "MBH-QT-2026-###"
   taxStatement: string; // printed under the totals
   rules: TemplateRules;
+  /** The approved Word file. When present, quotations are made by filling it, so the document is exactly the company's own. */
+  masterDocxBase64?: string;
+  master?: { greeting: string; intro: string; dateFormat: 'DD-MM-YYYY' | 'YYYY-MM-DD' | 'DD/MM/YYYY'; pagesDigits: number };
 }
 
 export type CheckSeverity = 'block' | 'warn';

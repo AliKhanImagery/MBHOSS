@@ -3,13 +3,16 @@
 import React, { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { AlertTriangle, CheckCircle2, ChevronsRight, Download, FilePlus2, MessageSquare, Paperclip, Plus, Save, Send, Trash2, Undo2, X, XCircle } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, ChevronsRight, Download, Eye, FilePlus2, Pencil, MessageSquare, Paperclip, Plus, Save, Send, Trash2, Undo2, X, XCircle } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { checkQuote, formatPKR } from '@/lib/quote-engine';
 import { formatRef, freedSlots, nextRef, numberInRange, withIgnored } from '@/lib/quote-range';
 import { authHeaders } from '@/lib/supabase';
 import { TopBarActions } from '@/components/TopBarActions';
 import { prepareImage, type PreparedImage } from '@/lib/image-prepare';
+import { fillMaster } from '@/lib/docx-master';
+import { base64ToBytes, buildFillData, masterChecks } from '@/lib/quote-master';
+import { MasterPreview, estimatePages } from '@/components/MasterPreview';
 import type { QuotationTemplate } from '@/types';
 
 interface AssistantResponse {
@@ -64,6 +67,10 @@ function QuotationContent() {
   const [chatOpen, setChatOpen] = useState(true);
   const [attached, setAttached] = useState<PreparedImage | null>(null);
   const [attachNote, setAttachNote] = useState<string | null>(null);
+  const [view, setView] = useState<'edit' | 'preview'>('edit');
+  const [previewBytes, setPreviewBytes] = useState<Uint8Array | null>(null);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+  const [building, setBuilding] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
   const feedEnd = useRef<HTMLDivElement>(null);
 
@@ -114,8 +121,9 @@ function QuotationContent() {
     } else if (!range && !isAdmin) {
       extra.push({ severity: 'warn', code: 'no_range', message: 'No quotation number range is assigned to you yet. Please ask an admin.' });
     }
-    return [...extra, ...base];
-  }, [q, rules, range, upcoming, isAdmin]);
+    const masterExtra = officeTemplate?.masterDocxBase64 ? masterChecks(q, officeTemplate) : [];
+    return [...extra, ...masterExtra, ...base];
+  }, [q, rules, range, upcoming, isAdmin, officeTemplate]);
   const blocking = checks.filter((c) => c.severity === 'block');
 
   useEffect(() => {
@@ -125,6 +133,59 @@ function QuotationContent() {
   const flash = (msg: string) => {
     setToast(msg);
     setTimeout(() => setToast(null), 3500);
+  };
+
+  // ── Word master: the document is made by filling the admin's approved .docx ──
+  const isMaster = !!officeTemplate?.masterDocxBase64;
+  const makeWord = async (): Promise<Uint8Array> => {
+    const t0 = officeTemplate!;
+    const master = base64ToBytes(t0.masterDocxBase64!);
+    const opts = { dateFormat: t0.master?.dateFormat };
+    const from = currentUser?.name ?? '';
+    // The PAGES box needs the page count, which depends on the content: fill once, measure, fill again.
+    const first = await fillMaster(master, buildFillData(q, t0, from), opts);
+    let pages = 1;
+    try { pages = await estimatePages(first.bytes); } catch { /* keep 1; Word recalculates the page count itself */ }
+    const digits = t0.master?.pagesDigits ?? 2;
+    const final = await fillMaster(master, buildFillData(q, t0, from, String(pages).padStart(digits, '0')), opts);
+    return final.bytes;
+  };
+
+  // keep the preview in step with the form (a short pause so typing stays smooth)
+  useEffect(() => {
+    if (!isMaster || view !== 'preview') return;
+    let alive = true;
+    setPreviewError(null);
+    const timer = setTimeout(async () => {
+      try {
+        const bytes = await makeWord();
+        if (alive) setPreviewBytes(bytes);
+      } catch (e) {
+        if (alive) setPreviewError(e instanceof Error ? e.message : 'The preview could not be built.');
+      }
+    }, 300);
+    return () => { alive = false; clearTimeout(timer); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isMaster, view, q, officeTemplate, currentUser?.name]);
+
+  const downloadWord = async () => {
+    if (building) return;
+    setBuilding(true);
+    try {
+      const bytes = await makeWord();
+      const blob = new Blob([bytes as BlobPart], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `${(q.quoteRef || 'Quotation').replace(/[^\w.-]+/g, '_')}.docx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    } catch (e) {
+      flash(e instanceof Error ? e.message : 'The Word file could not be made.');
+    } finally {
+      setBuilding(false);
+    }
   };
 
   const attach = async (file: File | undefined | null) => {
@@ -230,7 +291,10 @@ function QuotationContent() {
           <div className="flex-1" />
           {toast && <span className="text-xs font-semibold text-slate-700">{toast}</span>}
           <button onClick={() => (saveCurrentCase('Draft') ? flash('Saved') : flash('Add the quotation number first'))} title="Save" className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-full bg-slate-100 hover:bg-slate-200 text-xs font-semibold text-slate-800 cursor-pointer"><Save className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Save</span></button>
-          {canDownload && (
+          {canDownload && isMaster && (
+            <button onClick={() => void downloadWord()} disabled={blocking.length > 0 || building} title={blocking.length ? 'Fix the red items first' : 'Downloads your company Word file, filled in. This is the exact document.'} className="inline-flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 rounded-full bg-slate-900 hover:bg-black text-white text-xs font-bold disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"><Download className="w-3.5 h-3.5" /> <span className="hidden sm:inline">{building ? 'Making…' : 'Download Word'}</span></button>
+          )}
+          {canDownload && !isMaster && (
             <button onClick={() => window.print()} disabled={blocking.length > 0} title={blocking.length ? 'Fix the red items first' : 'In the print window, choose “Save as PDF”'} className="inline-flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 rounded-full bg-slate-900 hover:bg-black text-white text-xs font-bold disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"><Download className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Download PDF</span></button>
           )}
         </TopBarActions>
@@ -257,9 +321,38 @@ function QuotationContent() {
             </div>
           )}
 
+          {isMaster && (
+            <div className="max-w-[794px] mx-auto mb-3 print:hidden">
+              <div className="inline-flex rounded-full bg-white border border-slate-200 p-0.5 text-xs font-semibold">
+                <button onClick={() => setView('edit')} className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full cursor-pointer ${view === 'edit' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:text-slate-900'}`}><Pencil className="w-3.5 h-3.5" /> Edit</button>
+                <button onClick={() => setView('preview')} className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full cursor-pointer ${view === 'preview' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:text-slate-900'}`}><Eye className="w-3.5 h-3.5" /> Preview</button>
+              </div>
+              {view === 'edit' && (
+                <p className="text-[11px] text-slate-500 mt-2">You are filling in the details. Your company letterhead, footer and signature come from the approved Word file and are added when you download. Press <b>Preview</b> to see how it will look.</p>
+              )}
+            </div>
+          )}
+
+          {isMaster && view === 'preview' && (
+            <div className="max-w-[794px] mx-auto print:hidden">
+              <div role="status" className="mb-3 rounded-lg border border-amber-300 bg-amber-50 text-amber-900 text-xs p-3 flex gap-2">
+                <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                <div>
+                  <div className="font-bold uppercase tracking-wide text-[11px] mb-0.5">Preview only — not the final output</div>
+                  This is a quick picture drawn by the browser. Fonts and line breaks can look slightly different from Word. <b>The Word file you download is the exact company document.</b> Always check the downloaded file before sending it.
+                </div>
+              </div>
+              {previewError && <div className="mb-3 rounded-lg border border-red-200 bg-red-50 text-red-800 text-xs p-3">{previewError}</div>}
+              <div className="relative rounded-md overflow-auto bg-slate-300/60 p-3 border border-slate-200">
+                <div className="absolute top-2 right-3 z-10 rounded-full bg-amber-500 text-white text-[10px] font-bold tracking-wide px-2.5 py-1 shadow">PREVIEW ONLY</div>
+                {previewBytes ? <MasterPreview bytes={previewBytes} onError={setPreviewError} /> : !previewError && <div className="p-8 text-center text-xs text-slate-500">Building the preview…</div>}
+              </div>
+            </div>
+          )}
+
           {/* A4 sheet */}
-          <div id="quotation-printable-document" className="mx-auto bg-white shadow-md border border-slate-200 text-slate-900 text-[12px] leading-relaxed w-full max-w-[794px] min-h-[1000px] p-6 sm:p-10 flex flex-col">
-            <div className="flex items-start gap-4 border-b-2 border-slate-800 pb-3 mb-4">
+          <div id="quotation-printable-document" className={`${isMaster && view === 'preview' ? 'hidden' : ''} mx-auto bg-white shadow-md border border-slate-200 text-slate-900 text-[12px] leading-relaxed w-[794px] min-w-[794px] min-h-[1123px] p-10 flex flex-col`}>
+            {!isMaster && <div className="flex items-start gap-4 border-b-2 border-slate-800 pb-3 mb-4">
               {t.letterhead.logoDataUrl && (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={t.letterhead.logoDataUrl} alt="Company logo" className="h-14 w-auto" />
@@ -269,9 +362,9 @@ function QuotationContent() {
                   <div key={i} className={i === 0 ? 'text-base font-bold' : 'text-[11px] text-slate-600'}>{l}</div>
                 ))}
               </div>
-            </div>
+            </div>}
 
-            <h2 className="text-center font-bold tracking-widest text-sm mb-4">QUOTATION</h2>
+            {!isMaster && <h2 className="text-center font-bold tracking-widest text-sm mb-4">QUOTATION</h2>}
 
             <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 mb-4">
               <label className="flex items-center gap-2"><span className="font-semibold whitespace-nowrap">Quotation No:</span>
@@ -289,6 +382,20 @@ function QuotationContent() {
               <label className="flex items-center gap-2"><span className="font-semibold whitespace-nowrap">Valid for (days):</span>
                 <input type="number" min={0} className={inline} value={q.validityDays || ''} onChange={(e) => updateTemplateField('validityDays', Number(e.target.value) || 0)} /></label>
             </div>
+
+            {isMaster && (
+              <div className="mb-4 space-y-2">
+                <label className="flex items-center gap-2"><span className="font-semibold whitespace-nowrap">Subject:</span>
+                  <input className={inline} value={q.subject ?? ''} placeholder="what this quotation is for" onChange={(e) => updateTemplateField('subject', e.target.value)} /></label>
+                <label className="flex items-start gap-2"><span className="font-semibold whitespace-nowrap pt-0.5">Greeting:</span>
+                  <input className={inline} value={q.greeting ?? officeTemplate?.master?.greeting ?? ''} onChange={(e) => updateTemplateField('greeting', e.target.value)} /></label>
+                <div>
+                  <div className="font-semibold mb-0.5">Opening paragraph:</div>
+                  <AutoText value={q.intro ?? officeTemplate?.master?.intro ?? ''} onChange={(v) => updateTemplateField('intro', v)} className="w-full resize-none bg-transparent border border-dashed border-slate-300 focus:border-[#FF4D6D] focus:outline-none rounded px-1.5 py-1 leading-relaxed overflow-hidden" />
+                </div>
+                <p className="text-[11px] text-slate-500">Delivery, Payment and Valid-for are written into the matching lines of Terms &amp; Conditions. Only values you fill in here are used; if a box is empty, the standard wording stays.</p>
+              </div>
+            )}
 
             <table className="w-full border-collapse mb-2">
               <thead>
@@ -334,7 +441,7 @@ function QuotationContent() {
 
             <div className="self-end text-right mb-1">
               <div className="font-bold text-sm">Total ({q.currency}): <span className="font-mono">{formatPKR(q.grandTotal)}</span></div>
-              <div className="text-[11px] text-slate-600">{t.taxStatement}</div>
+              {!isMaster && <div className="text-[11px] text-slate-600">{t.taxStatement}</div>}
             </div>
 
             {(q.notes.length > 0) && (
@@ -372,15 +479,15 @@ function QuotationContent() {
               </div>
             )}
 
-            <div className="mt-6">
+            {!isMaster && <div className="mt-6">
               <div>Regards,</div>
               {t.signatory.company && <div className="font-semibold">For {t.signatory.company}</div>}
               <div className="mt-8 font-semibold">{t.signatory.name}</div>
               <div className="text-slate-600">{t.signatory.designation}</div>
-            </div>
+            </div>}
 
             <div className="flex-1" />
-            {t.letterhead.footerLines.length > 0 && (
+            {!isMaster && t.letterhead.footerLines.length > 0 && (
               <div className="border-t border-slate-300 mt-6 pt-2 text-[10px] text-slate-500 text-center">
                 {t.letterhead.footerLines.map((l, i) => <div key={i}>{l}</div>)}
               </div>
