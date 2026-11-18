@@ -70,3 +70,8 @@ body {
     border: none !important;
   }
 }
+
+/* Word preview: the page is a document, so it keeps its size and nothing in it is clipped. */
+.master-preview section.docx { margin: 0 0 16px 0; box-shadow: 0 1px 6px rgba(0,0,0,.25); overflow: visible; background: #fff; }
+.master-preview section.docx > header { overflow: visible; }
+.master-preview img { max-width: none; }
