@@ -19,3 +19,9 @@ test('sign-in on: a token the server cannot verify is rejected, never allowed', 
   const r = await requireSession(req({ authorization: 'Bearer not-a-real-token' }));
   assert.equal(r.ok, false);
 });
+
+test('database address and key fall back to the built-in project, same as the browser', async () => {
+  const { supabaseConfig, DEFAULT_SUPABASE_URL, DEFAULT_SUPABASE_ANON_KEY } = await import('../src/lib/supabase-config');
+  assert.deepEqual(supabaseConfig({}), { url: DEFAULT_SUPABASE_URL, anonKey: DEFAULT_SUPABASE_ANON_KEY });
+  assert.deepEqual(supabaseConfig({ NEXT_PUBLIC_SUPABASE_URL: 'https://a.b', NEXT_PUBLIC_SUPABASE_ANON_KEY: 'k' }), { url: 'https://a.b', anonKey: 'k' });
+});
