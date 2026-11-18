@@ -3,7 +3,7 @@
 import React, { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { AlertTriangle, CheckCircle2, ChevronsRight, Download, Eye, FilePlus2, Pencil, MessageSquare, Paperclip, Plus, Save, Send, Trash2, Undo2, X, XCircle } from 'lucide-react';
+import { Archive, AlertTriangle, CheckCircle2, Clock, ChevronsRight, Download, Eye, FilePlus2, Pencil, MessageSquare, Paperclip, Plus, Save, Send, Trash2, Undo2, X, XCircle } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { checkQuote, formatPKR } from '@/lib/quote-engine';
 import { formatRef, freedSlots, nextRef, numberInRange, withIgnored } from '@/lib/quote-range';
@@ -11,6 +11,8 @@ import { authHeaders } from '@/lib/supabase';
 import { TopBarActions } from '@/components/TopBarActions';
 import { prepareImage, type PreparedImage } from '@/lib/image-prepare';
 import { fillMaster } from '@/lib/docx-master';
+import { canArchive, confirmPrices, followUpState, hold, isArchived, lifecycleChecks, priceAgeDays, resume, STALE_PRICE_DAYS, WAITING_LABEL, WAITING_REASONS } from '@/lib/quote-lifecycle';
+import type { WaitingReason } from '@/types';
 import { base64ToBytes, buildFillData, masterChecks } from '@/lib/quote-master';
 import { MasterPreview, estimatePages } from '@/components/MasterPreview';
 import type { QuotationTemplate } from '@/types';
@@ -56,7 +58,7 @@ function QuotationContent() {
   const {
     currentUser, isAdmin, officeTemplate, dataBank, users, activeCases, updateUserFeatures,
     templateState: q, updateTemplateField, updateLineItem, addLineItem, removeLineItem,
-    applyQuote, undoQuote, canUndo, startNewQuote, saveCurrentCase,
+    applyQuote, undoQuote, canUndo, startNewQuote, saveCurrentCase, restoreCase,
     chatMessages, addChatMessage,
   } = useApp();
 
@@ -67,6 +69,8 @@ function QuotationContent() {
   const [chatOpen, setChatOpen] = useState(true);
   const [attached, setAttached] = useState<PreparedImage | null>(null);
   const [attachNote, setAttachNote] = useState<string | null>(null);
+  const [holdOpen, setHoldOpen] = useState(false);
+  const [holdForm, setHoldForm] = useState<{ reason: WaitingReason; note: string; owner: string; followUp: string }>({ reason: 'ceo_confirming', note: '', owner: '', followUp: '' });
   const [view, setView] = useState<'edit' | 'preview'>('edit');
   const [previewBytes, setPreviewBytes] = useState<Uint8Array | null>(null);
   const [previewError, setPreviewError] = useState<string | null>(null);
@@ -122,7 +126,10 @@ function QuotationContent() {
       extra.push({ severity: 'warn', code: 'no_range', message: 'No quotation number range is assigned to you yet. Please ask an admin.' });
     }
     const masterExtra = officeTemplate?.masterDocxBase64 ? masterChecks(q, officeTemplate) : [];
-    return [...extra, ...masterExtra, ...base];
+    const life = lifecycleChecks(q, new Date().toISOString().slice(0, 10));
+    const baseKept = base.filter((c) => !(c.code === 'no_price' && q.lineItems.find((l) => l.id === c.lineId)?.ratePending)); // a pending rate is already reported
+    const all = [...extra, ...masterExtra, ...life, ...baseKept];
+    return all.sort((a, b) => (a.severity === b.severity ? 0 : a.severity === 'block' ? -1 : 1));
   }, [q, rules, range, upcoming, isAdmin, officeTemplate]);
   const blocking = checks.filter((c) => c.severity === 'block');
 
@@ -134,6 +141,27 @@ function QuotationContent() {
     setToast(msg);
     setTimeout(() => setToast(null), 3500);
   };
+
+  // ── Life of the quote: hold, resume, recheck prices ──
+  const who = currentUser ? { id: currentUser.id, name: currentUser.name, role: currentUser.role } : null;
+  const today = new Date().toISOString().slice(0, 10);
+  const lc = q.lifecycle;
+  const archived = isArchived(lc);
+  const mayManage = !!who && (!lc?.ownerId || canArchive(lc, who)); // an unsaved quote is the maker's own
+  const savedCase = activeCases.find((c) => c.caseRef === q.quoteRef.trim());
+  const persist = (msg: string) => {
+    if (saveCurrentCase()) flash(msg);
+    else flash('Add the quotation number first, so this can be saved.');
+  };
+  const applyHold = () => {
+    if (!who) return;
+    updateTemplateField('lifecycle', hold(lc, { ...holdForm, followUp: holdForm.followUp || null }, who, new Date()));
+    setHoldOpen(false);
+    persist('Put on hold and saved.');
+  };
+  const resumeQuote = () => { if (!who) return; updateTemplateField('lifecycle', resume(lc, who, new Date())); persist('Taken off hold and saved.'); };
+  const recheckPrices = () => { if (!who) return; updateTemplateField('lifecycle', confirmPrices(lc, who, new Date())); persist('Prices marked as rechecked today.'); };
+  const priceAge = priceAgeDays(q, today);
 
   // ── Word master: the document is made by filling the admin's approved .docx ──
   const isMaster = !!officeTemplate?.masterDocxBase64;
@@ -290,7 +318,7 @@ function QuotationContent() {
           <button onClick={undoQuote} disabled={!canUndo} title="Undo" className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-full border border-slate-300 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40 cursor-pointer"><Undo2 className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Undo</span></button>
           <div className="flex-1" />
           {toast && <span className="text-xs font-semibold text-slate-700">{toast}</span>}
-          <button onClick={() => (saveCurrentCase('Draft') ? flash('Saved') : flash('Add the quotation number first'))} title="Save" className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-full bg-slate-100 hover:bg-slate-200 text-xs font-semibold text-slate-800 cursor-pointer"><Save className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Save</span></button>
+          <button onClick={() => (saveCurrentCase() ? flash('Saved') : flash('Add the quotation number first'))} title="Save" className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-full bg-slate-100 hover:bg-slate-200 text-xs font-semibold text-slate-800 cursor-pointer"><Save className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Save</span></button>
           {canDownload && isMaster && (
             <button onClick={() => void downloadWord()} disabled={blocking.length > 0 || building} title={blocking.length ? 'Fix the red items first' : 'Downloads your company Word file, filled in. This is the exact document.'} className="inline-flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 rounded-full bg-slate-900 hover:bg-black text-white text-xs font-bold disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"><Download className="w-3.5 h-3.5" /> <span className="hidden sm:inline">{building ? 'Making…' : 'Download Word'}</span></button>
           )}
@@ -318,6 +346,73 @@ function QuotationContent() {
                   <button onClick={() => void ignoreFreed(freed)} className="px-3 py-1.5 rounded-full text-sky-800 hover:underline font-semibold cursor-pointer">Never offer any of these</button>
                 )}
               </div>
+            </div>
+          )}
+
+          {archived && (
+            <div className="max-w-[794px] mx-auto mb-3 rounded-lg border border-slate-300 bg-slate-100 text-slate-800 text-xs p-3 print:hidden flex flex-wrap items-center gap-3">
+              <Archive className="w-4 h-4" />
+              <span className="flex-1 min-w-[200px]"><b>This quotation is archived.</b> It is hidden from the active list and its number stays reserved.</span>
+              {savedCase && who && canArchive(lc, who) && (
+                <button onClick={() => { if (restoreCase(savedCase.id)) flash('Restored.'); }} className="px-3 py-1.5 rounded-full bg-slate-900 text-white font-semibold cursor-pointer">Restore</button>
+              )}
+            </div>
+          )}
+
+          {!archived && (
+            <div className="max-w-[794px] mx-auto mb-3 print:hidden">
+              {lc?.waiting ? (
+                <div className={`rounded-lg border p-3 text-xs flex flex-wrap items-start gap-3 ${followUpState(lc.waiting, today) === 'overdue' ? 'border-red-300 bg-red-50 text-red-900' : 'border-amber-300 bg-amber-50 text-amber-900'}`}>
+                  <Clock className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                  <div className="flex-1 min-w-[220px]">
+                    <div className="font-bold">On hold — {WAITING_LABEL[lc.waiting.reason]}</div>
+                    {lc.waiting.note && <div className="mt-0.5">{lc.waiting.note}</div>}
+                    <div className="mt-0.5 opacity-80">Next move: {lc.waiting.owner || 'not set'} · since {lc.waiting.since.slice(0, 10)}{lc.waiting.followUp ? ` · follow up ${lc.waiting.followUp}${followUpState(lc.waiting, today) === 'overdue' ? ' (overdue)' : ''}` : ''}</div>
+                  </div>
+                  {mayManage && (
+                    <div className="flex gap-2">
+                      <button onClick={() => { setHoldForm({ reason: lc.waiting!.reason, note: lc.waiting!.note, owner: lc.waiting!.owner, followUp: lc.waiting!.followUp ?? '' }); setHoldOpen(true); }} className="px-3 py-1.5 rounded-full border border-current font-semibold cursor-pointer">Edit</button>
+                      <button onClick={resumeQuote} className="px-3 py-1.5 rounded-full bg-slate-900 text-white font-semibold cursor-pointer">Resume</button>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                mayManage && !holdOpen && (
+                  <button onClick={() => { setHoldForm((f) => ({ ...f, owner: f.owner || who?.name || '' })); setHoldOpen(true); }} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-slate-300 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 cursor-pointer"><Clock className="w-3.5 h-3.5" /> Put on hold…</button>
+                )
+              )}
+
+              {holdOpen && (
+                <div className="mt-2 rounded-lg border border-slate-200 bg-white p-3 text-xs space-y-2">
+                  <div className="font-bold text-slate-800">What is this quote waiting for?</div>
+                  <div className="grid sm:grid-cols-2 gap-2">
+                    <label className="block"><span className="block font-semibold mb-0.5">Waiting for</span>
+                      <select value={holdForm.reason} onChange={(e) => setHoldForm({ ...holdForm, reason: e.target.value as WaitingReason })} className="w-full border border-slate-200 rounded-lg px-2 py-1.5">
+                        {WAITING_REASONS.map((r) => <option key={r} value={r}>{WAITING_LABEL[r]}</option>)}
+                      </select></label>
+                    <label className="block"><span className="block font-semibold mb-0.5">Who has the next move</span>
+                      <select value={holdForm.owner} onChange={(e) => setHoldForm({ ...holdForm, owner: e.target.value })} className="w-full border border-slate-200 rounded-lg px-2 py-1.5">
+                        {[...new Set([holdForm.owner, ...users.map((u) => u.name)].filter(Boolean))].map((n) => <option key={n} value={n}>{n}</option>)}
+                      </select></label>
+                    <label className="block sm:col-span-2"><span className="block font-semibold mb-0.5">Note (optional)</span>
+                      <input value={holdForm.note} maxLength={200} onChange={(e) => setHoldForm({ ...holdForm, note: e.target.value })} placeholder="e.g. waiting for Siemens to confirm the rate" className="w-full border border-slate-200 rounded-lg px-2 py-1.5" /></label>
+                    <label className="block"><span className="block font-semibold mb-0.5">Look at it again on (optional)</span>
+                      <input type="date" value={holdForm.followUp} onChange={(e) => setHoldForm({ ...holdForm, followUp: e.target.value })} className="w-full border border-slate-200 rounded-lg px-2 py-1.5" /></label>
+                  </div>
+                  <div className="flex gap-2 pt-1">
+                    <button onClick={applyHold} className="px-3 py-1.5 rounded-full bg-slate-900 text-white font-semibold cursor-pointer">Save hold</button>
+                    <button onClick={() => setHoldOpen(false)} className="px-3 py-1.5 rounded-full border border-slate-300 font-semibold cursor-pointer">Cancel</button>
+                  </div>
+                </div>
+              )}
+
+              {q.lineItems.length > 0 && priceAge > STALE_PRICE_DAYS && (
+                <div className="mt-2 rounded-lg border border-amber-300 bg-amber-50 text-amber-900 text-xs p-3 flex flex-wrap items-center gap-3">
+                  <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+                  <span className="flex-1 min-w-[200px]">Prices were last confirmed <b>{priceAge} days ago</b> (limit {STALE_PRICE_DAYS}). Check them with your suppliers before sending.</span>
+                  {mayManage && <button onClick={recheckPrices} className="px-3 py-1.5 rounded-full bg-slate-900 text-white font-semibold cursor-pointer">I rechecked the prices</button>}
+                </div>
+              )}
             </div>
           )}
 
@@ -425,10 +520,11 @@ function QuotationContent() {
                       <td className="py-1 px-1"><input className={inline} value={l.uom} onChange={(e) => updateLineItem(l.id, { uom: e.target.value.toUpperCase() })} /></td>
                       <td className="py-1 px-1 text-right">
                         {priceEditable ? (
-                          <input type="number" min={0} className={`${inline} text-right`} value={l.unitPrice || ''} onChange={(e) => updateLineItem(l.id, { unitPrice: Number(e.target.value) || 0 })} />
+                          <input type="number" min={0} className={`${inline} text-right`} value={l.unitPrice || ''} onChange={(e) => { const n = Number(e.target.value) || 0; updateLineItem(l.id, n > 0 ? { unitPrice: n, ratePending: false } : { unitPrice: n }); }} />
                         ) : (
                           <span className="font-mono">{formatPKR(l.unitPrice)}</span>
                         )}
+                        <label className="mt-0.5 inline-flex items-center gap-1 text-[10px] text-slate-500 cursor-pointer print:hidden"><input type="checkbox" checked={!!l.ratePending} onChange={(e) => updateLineItem(l.id, { ratePending: e.target.checked })} /> rate pending</label>
                       </td>
                       <td className="py-1.5 px-1.5 text-right font-mono font-semibold">{formatPKR(l.total)}</td>
                       <td className="py-1 px-1 print:hidden"><button onClick={() => removeLineItem(l.id)} title="Remove this item" className="text-slate-300 hover:text-red-600 cursor-pointer"><Trash2 className="w-3.5 h-3.5" /></button></td>

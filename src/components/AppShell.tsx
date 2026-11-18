@@ -75,7 +75,7 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
       shortLabel: 'Cases',
       icon: FolderKanban,
       active: pathname === '/cases',
-      count: activeCases.length,
+      count: activeCases.filter((c) => !c.templateState?.lifecycle?.archived).length,
     },
     {
       href: '/sourcing',

@@ -44,6 +44,20 @@ begin
     end if;
   end loop;
 
+  -- Saved quotations: the team can read, create and edit them, but only an admin can delete one for good.
+  -- (Everyone else uses "Archive" in the app, which is just an edit.)
+  if to_regclass('public.quotation_cases') is not null then
+    drop policy if exists team_all on public.quotation_cases;
+    drop policy if exists team_read on public.quotation_cases;
+    drop policy if exists team_insert on public.quotation_cases;
+    drop policy if exists team_update on public.quotation_cases;
+    drop policy if exists admin_delete on public.quotation_cases;
+    create policy team_read on public.quotation_cases for select to authenticated using (public.is_team_member());
+    create policy team_insert on public.quotation_cases for insert to authenticated with check (public.is_team_member());
+    create policy team_update on public.quotation_cases for update to authenticated using (public.is_team_member()) with check (public.is_team_member());
+    create policy admin_delete on public.quotation_cases for delete to authenticated using (public.is_admin());
+  end if;
+
   -- Template settings: team can read, only admins can change.
   if to_regclass('public.template_settings') is not null then
     alter table public.template_settings enable row level security;

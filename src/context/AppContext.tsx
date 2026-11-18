@@ -14,6 +14,7 @@ import {
 import { blankQuote, recalc } from '@/lib/quote-engine';
 import type { TemplateDraft } from '@/lib/docx-template';
 import { MASTER_FILE_MARK } from '@/lib/quote-master';
+import { archive as archiveLc, canArchive, canDeleteForever, restore as restoreLc, resume as resumeLc, withOwner, type Actor } from '@/lib/quote-lifecycle';
 import {
   fetchDatabankFromCloud,
   syncDatabankItemToCloud,
@@ -119,7 +120,10 @@ interface AppContextType {
   activeCases: QuotationCase[];
   saveCurrentCase: (status?: QuotationCase['status']) => boolean;
   loadCase: (caseId: string) => void;
-  deleteCase: (caseId: string) => void;
+  deleteCase: (caseId: string) => boolean; // permanent: admin only, and only for an archived quote
+  archiveCase: (caseId: string) => boolean; // owner or admin; the quote number stays reserved
+  restoreCase: (caseId: string) => boolean;
+  resumeCase: (caseId: string) => boolean; // take a quote off hold from the list
 
   // Assistant chat (belongs to the quote being edited)
   chatMessages: ChatMessage[];
@@ -516,19 +520,31 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   }, [activeCases]);
 
-  const saveCurrentCase = (status: QuotationCase['status'] = 'Draft'): boolean => {
+  const actor = (): Actor | null => (currentUser ? { id: currentUser.id, name: currentUser.name, role: currentUser.role } : null);
+
+  const saveCurrentCase = (status?: QuotationCase['status']): boolean => {
     const q = quoteRef.current;
     if (!q.quoteRef.trim()) return false; // a saved quote needs its number
     const existingIndex = activeCases.findIndex((c) => c.caseRef === q.quoteRef);
+    const existing = existingIndex >= 0 ? activeCases[existingIndex] : null;
+    // The owner is the person who first saves the quote. It is kept on every later save.
+    const who = actor();
+    let lifecycle = q.lifecycle ?? existing?.templateState.lifecycle;
+    if (!existing && who) lifecycle = withOwner(lifecycle, who);
+    const withLc: QuotationTemplate = lifecycle ? { ...q, lifecycle } : q;
+    if (withLc !== q) {
+      quoteRef.current = withLc;
+      setTemplateStateRaw(withLc);
+    }
     const updatedCase: QuotationCase = {
-      id: existingIndex >= 0 ? activeCases[existingIndex].id : `case-${Date.now()}`,
+      id: existing ? existing.id : `case-${Date.now()}`,
       caseRef: q.quoteRef,
       clientName: q.clientName || 'Untitled Client',
-      status,
-      createdAt: new Date().toISOString().split('T')[0],
+      status: status ?? existing?.status ?? 'Draft',
+      createdAt: existing?.createdAt ?? new Date().toISOString().split('T')[0],
       totalPKR: q.grandTotal,
       itemCount: q.lineItems.length,
-      templateState: { ...q },
+      templateState: { ...withLc },
     };
 
     setActiveCases((prev) => {
@@ -541,7 +557,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
 
     syncCaseToCloud(updatedCase);
-    syncQuotationToCloud(q);
+    syncQuotationToCloud(withLc);
     return true;
   };
 
@@ -556,9 +572,35 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const deleteCase = (caseId: string) => {
+  // Change a saved quote's lifecycle (archive, restore, resume) and keep the open quote in step.
+  const changeLifecycle = (caseId: string, allowed: (c: QuotationCase, who: Actor) => boolean, change: (lc: QuotationTemplate['lifecycle'], who: Actor) => QuotationTemplate['lifecycle']): boolean => {
+    const who = actor();
+    const target = activeCases.find((c) => c.id === caseId);
+    if (!who || !target || !allowed(target, who)) return false;
+    const lifecycle = change(target.templateState.lifecycle, who);
+    const updated: QuotationCase = { ...target, templateState: { ...target.templateState, lifecycle } };
+    setActiveCases((prev) => prev.map((c) => (c.id === caseId ? updated : c)));
+    void syncCaseToCloud(updated);
+    if (quoteRef.current.quoteRef === target.caseRef) {
+      const live = { ...quoteRef.current, lifecycle };
+      quoteRef.current = live;
+      setTemplateStateRaw(live);
+    }
+    return true;
+  };
+
+  const archiveCase = (id: string) => changeLifecycle(id, (c, w) => canArchive(c.templateState.lifecycle, w), (lc, w) => archiveLc(lc, w, new Date()));
+  const restoreCase = (id: string) => changeLifecycle(id, (c, w) => canArchive(c.templateState.lifecycle, w), (lc, w) => restoreLc(lc, w, new Date()));
+  const resumeCase = (id: string) => changeLifecycle(id, (c, w) => canArchive(c.templateState.lifecycle, w), (lc, w) => resumeLc(lc, w, new Date()));
+
+  // Permanent. Only an admin, and only for a quote that is already archived. Its number then becomes free.
+  const deleteCase = (caseId: string): boolean => {
+    const who = actor();
+    const target = activeCases.find((c) => c.id === caseId);
+    if (!who || !target || !canDeleteForever(target.templateState.lifecycle, who)) return false;
     setActiveCases((prev) => prev.filter((c) => c.id !== caseId));
-    deleteCaseFromCloud(caseId);
+    void deleteCaseFromCloud(caseId);
+    return true;
   };
 
   return (
@@ -593,6 +635,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         saveCurrentCase,
         loadCase,
         deleteCase,
+        archiveCase,
+        restoreCase,
+        resumeCase,
         chatMessages,
         addChatMessage,
         clearChat,
