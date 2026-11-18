@@ -67,11 +67,26 @@ export interface WaitingInfo {
 
 export interface LifecycleEvent { at: string; by: string; text: string }
 
+/** A request for one named colleague to approve a quote before it can be downloaded. */
+export interface ApprovalInfo {
+  requestedFromId: string;
+  requestedFromName: string;
+  requestedById: string;
+  requestedByName: string;
+  requestedAt: string; // ISO
+  status: 'awaiting' | 'approved' | 'sent_back';
+  note?: string; // the approver's note when sending back, or the requester's message
+  decidedAt?: string; // ISO
+  decidedByName?: string;
+  fingerprint?: string; // what was approved. If the quote no longer matches, the approval no longer counts.
+}
+
 /** Life of a quote beyond its content. Stored inside the quote (no database change). */
 export interface Lifecycle {
   ownerId?: string;
   ownerName?: string;
   waiting?: WaitingInfo | null;
+  approval?: ApprovalInfo | null;
   archived?: { at: string; by: string } | null;
   pricesConfirmedAt?: string; // YYYY-MM-DD, set when someone rechecks the prices
   log?: LifecycleEvent[];
