@@ -147,8 +147,8 @@ function QuotationContent() {
   const today = new Date().toISOString().slice(0, 10);
   const lc = q.lifecycle;
   const archived = isArchived(lc);
-  const mayManage = !!who && (!lc?.ownerId || canArchive(lc, who)); // an unsaved quote is the maker's own
   const savedCase = activeCases.find((c) => c.caseRef === q.quoteRef.trim());
+  const mayManage = !!who && (!savedCase || canArchive(lc, who)); // an unsaved quote is the maker's own; a saved one needs owner or admin
   const persist = (msg: string) => {
     if (saveCurrentCase()) flash(msg);
     else flash('Add the quotation number first, so this can be saved.');
