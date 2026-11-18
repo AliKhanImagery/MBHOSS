@@ -5,6 +5,7 @@ import { Onboarding, TOUR_EVENT } from '@/components/Onboarding';
 import React, { useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import NotificationBell from '@/components/NotificationBell';
 import {
   LayoutDashboard,
   Sparkles,
@@ -16,7 +17,6 @@ import {
   FileCog,
   Wrench,
   Search,
-  Bell,
   RefreshCw,
   Send,
   ArrowLeft, HelpCircle,
@@ -187,12 +187,7 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
             <RefreshCw className={`w-[18px] h-[18px] ${cloudStatus === 'syncing' ? 'animate-spin text-amber-600' : ''}`} />
             <span className={`absolute top-1.5 right-1.5 w-2.5 h-2.5 rounded-full border-2 border-white ${syncDot}`} />
           </button>
-          <button
-            className="w-10 h-10 rounded-2xl flex items-center justify-center text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
-            title="Notifications"
-          >
-            <Bell className="w-[18px] h-[18px]" />
-          </button>
+          <NotificationBell variant="rail" />
           <button
             onClick={() => window.dispatchEvent(new Event(TOUR_EVENT))}
             className="w-10 h-10 rounded-2xl flex items-center justify-center text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
@@ -239,6 +234,7 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
               <RefreshCw className={`w-3.5 h-3.5 text-slate-600 ${cloudStatus === 'syncing' ? 'animate-spin' : ''}`} />
               <span className={`absolute top-0 right-0 w-2 h-2 rounded-full ${syncDot}`} />
             </button>
+            <NotificationBell variant="phone" />
             <div className="w-8 h-8 rounded-full bg-slate-900 text-white font-bold text-[11px] flex items-center justify-center" title={`${currentUser?.name ?? ''} · ${currentUser?.role ?? ''}`}>
               {currentUser?.avatar || (currentUser?.name ?? '?').slice(0, 2).toUpperCase()}
             </div>

@@ -3,7 +3,7 @@
 import React, { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { Archive, AlertTriangle, CheckCircle2, Clock, ChevronsRight, Download, Eye, FilePlus2, Pencil, MessageSquare, Paperclip, Plus, Save, Send, Trash2, Undo2, X, XCircle } from 'lucide-react';
+import { Archive, AlertTriangle, Check, CheckCircle2, Clock, ChevronsRight, Download, Eye, FilePlus2, Pencil, MessageSquare, Paperclip, Plus, Save, Send, Trash2, Undo2, X, XCircle } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { checkQuote, formatPKR } from '@/lib/quote-engine';
 import { formatRef, freedSlots, nextRef, numberInRange, withIgnored } from '@/lib/quote-range';
@@ -11,6 +11,7 @@ import { authHeaders } from '@/lib/supabase';
 import { TopBarActions } from '@/components/TopBarActions';
 import { prepareImage, type PreparedImage } from '@/lib/image-prepare';
 import { fillMaster } from '@/lib/docx-master';
+import { approvalChecks, approvalState, approve, cancelApproval, canDecide, requestApproval, sendBack } from '@/lib/quote-approval';
 import { canArchive, confirmPrices, followUpState, hold, isArchived, lifecycleChecks, priceAgeDays, resume, STALE_PRICE_DAYS, WAITING_LABEL, WAITING_REASONS } from '@/lib/quote-lifecycle';
 import type { WaitingReason } from '@/types';
 import { base64ToBytes, buildFillData, masterChecks } from '@/lib/quote-master';
@@ -128,9 +129,10 @@ function QuotationContent() {
     const masterExtra = officeTemplate?.masterDocxBase64 ? masterChecks(q, officeTemplate) : [];
     const life = lifecycleChecks(q, new Date().toISOString().slice(0, 10));
     const baseKept = base.filter((c) => !(c.code === 'no_price' && q.lineItems.find((l) => l.id === c.lineId)?.ratePending)); // a pending rate is already reported
-    const all = [...extra, ...masterExtra, ...life, ...baseKept];
+    const actorNow = currentUser ? { id: currentUser.id, name: currentUser.name, role: currentUser.role } : null;
+    const all = [...extra, ...masterExtra, ...life, ...approvalChecks(q, actorNow), ...baseKept];
     return all.sort((a, b) => (a.severity === b.severity ? 0 : a.severity === 'block' ? -1 : 1));
-  }, [q, rules, range, upcoming, isAdmin, officeTemplate]);
+  }, [q, rules, range, upcoming, isAdmin, officeTemplate, currentUser?.id, currentUser?.role]);
   const blocking = checks.filter((c) => c.severity === 'block');
 
   useEffect(() => {
@@ -162,6 +164,27 @@ function QuotationContent() {
   const resumeQuote = () => { if (!who) return; updateTemplateField('lifecycle', resume(lc, who, new Date())); persist('Taken off hold and saved.'); };
   const recheckPrices = () => { if (!who) return; updateTemplateField('lifecycle', confirmPrices(lc, who, new Date())); persist('Prices marked as rechecked today.'); };
   const priceAge = priceAgeDays(q, today);
+
+  // ── Approval: ask one colleague; they may edit, then approve or send back ──
+  const [askOpen, setAskOpen] = useState(false);
+  const [askTarget, setAskTarget] = useState('');
+  const [askNote, setAskNote] = useState('');
+  const [backOpen, setBackOpen] = useState(false);
+  const [backNote, setBackNote] = useState('');
+  const aState = approvalState(q);
+  const appr = lc?.approval;
+  const askable = users.filter((u) => !who || u.id !== who.id || isAdmin);
+  const sendAsk = () => {
+    const target = users.find((u) => u.id === askTarget);
+    if (!who || !target) return;
+    updateTemplateField('lifecycle', requestApproval(lc, { id: target.id, name: target.name }, who, askNote, new Date()));
+    setAskOpen(false); setAskNote('');
+    persist(`Asked ${target.name} to approve.`);
+  };
+  const doApprove = () => { if (!who) return; updateTemplateField('lifecycle', approve(lc, q, who, new Date())); persist('Approved and saved.'); };
+  const doSendBack = () => { if (!who || !backNote.trim()) return; updateTemplateField('lifecycle', sendBack(lc, who, backNote, new Date())); setBackOpen(false); setBackNote(''); persist('Sent back and saved.'); };
+  const doCancelAsk = () => { if (!who) return; updateTemplateField('lifecycle', cancelApproval(lc, who, new Date())); persist('Request cancelled.'); };
+  const iDecide = !!who && canDecide(lc, who);
 
   // ── Word master: the document is made by filling the admin's approved .docx ──
   const isMaster = !!officeTemplate?.masterDocxBase64;
@@ -411,6 +434,67 @@ function QuotationContent() {
                   <AlertTriangle className="w-4 h-4 flex-shrink-0" />
                   <span className="flex-1 min-w-[200px]">Prices were last confirmed <b>{priceAge} days ago</b> (limit {STALE_PRICE_DAYS}). Check them with your suppliers before sending.</span>
                   {mayManage && <button onClick={recheckPrices} className="px-3 py-1.5 rounded-full bg-slate-900 text-white font-semibold cursor-pointer">I rechecked the prices</button>}
+                </div>
+              )}
+            </div>
+          )}
+
+          {!archived && (
+            <div className="max-w-[794px] mx-auto mb-3 print:hidden" data-testid="approval-panel">
+              {aState === 'approved' && (
+                <div className="rounded-lg border border-emerald-300 bg-emerald-50 text-emerald-900 text-xs p-3 flex flex-wrap items-center gap-3">
+                  <Check className="w-4 h-4 flex-shrink-0" />
+                  <span className="flex-1 min-w-[200px]"><b>Approved</b> by {appr?.decidedByName} on {appr?.decidedAt?.slice(0, 10)}. Changing anything will withdraw this approval.</span>
+                </div>
+              )}
+              {aState === 'awaiting' && (
+                <div className="rounded-lg border border-blue-300 bg-blue-50 text-blue-900 text-xs p-3 space-y-2">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <Clock className="w-4 h-4 flex-shrink-0" />
+                    <span className="flex-1 min-w-[200px]"><b>Waiting for {appr?.requestedFromName} to approve</b> — asked by {appr?.requestedByName} on {appr?.requestedAt.slice(0, 10)}.{appr?.note ? ` “${appr.note}”` : ''} You can keep editing.</span>
+                    {iDecide && !backOpen && (
+                      <div className="flex gap-2">
+                        <button onClick={doApprove} className="px-3 py-1.5 rounded-full bg-slate-900 text-white font-semibold cursor-pointer">Approve</button>
+                        <button onClick={() => setBackOpen(true)} className="px-3 py-1.5 rounded-full border border-slate-300 bg-white font-semibold cursor-pointer">Send back…</button>
+                      </div>
+                    )}
+                    {!iDecide && mayManage && <button onClick={doCancelAsk} className="px-3 py-1.5 rounded-full border border-slate-300 bg-white font-semibold cursor-pointer">Cancel request</button>}
+                  </div>
+                  {iDecide && <div className="text-[11px] opacity-80">You may change anything on this quote, prices included, before you approve it.</div>}
+                  {iDecide && backOpen && (
+                    <div className="flex flex-wrap gap-2 items-center">
+                      <input value={backNote} maxLength={200} onChange={(e) => setBackNote(e.target.value)} placeholder="What should be fixed? (required)" className="flex-1 min-w-[200px] border border-slate-200 rounded-lg px-2 py-1.5 bg-white" />
+                      <button onClick={doSendBack} disabled={!backNote.trim()} className="px-3 py-1.5 rounded-full bg-slate-900 text-white font-semibold disabled:opacity-40 cursor-pointer">Send back</button>
+                      <button onClick={() => setBackOpen(false)} className="px-3 py-1.5 rounded-full border border-slate-300 bg-white font-semibold cursor-pointer">Cancel</button>
+                    </div>
+                  )}
+                </div>
+              )}
+              {(aState === 'sent_back' || aState === 'changed') && (
+                <div className="rounded-lg border border-amber-300 bg-amber-50 text-amber-900 text-xs p-3 flex flex-wrap items-center gap-3 mb-2">
+                  <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+                  <span className="flex-1 min-w-[200px]">{aState === 'sent_back' ? <><b>{appr?.decidedByName} sent this back</b>{appr?.note ? `: “${appr.note}”` : ''}. Fix it, then ask again.</> : <><b>Approval withdrawn.</b> The quote was changed after {appr?.decidedByName} approved it. Ask again.</>}</span>
+                </div>
+              )}
+              {(aState === 'none' || aState === 'sent_back' || aState === 'changed') && mayManage && !askOpen && (
+                <button onClick={() => { setAskTarget((t) => t || askable[0]?.id || ''); setAskOpen(true); }} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-slate-300 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-800 cursor-pointer"><Check className="w-3.5 h-3.5" /> Ask for approval…</button>
+              )}
+              {askOpen && (
+                <div className="rounded-lg border border-slate-200 bg-white p-3 text-xs space-y-2">
+                  <div className="font-bold text-slate-800">Who should approve this quote?</div>
+                  <div className="grid sm:grid-cols-2 gap-2">
+                    <label className="block"><span className="block font-semibold mb-0.5">Colleague</span>
+                      <select value={askTarget} onChange={(e) => setAskTarget(e.target.value)} className="w-full border border-slate-200 rounded-lg px-2 py-1.5">
+                        {askable.map((u) => <option key={u.id} value={u.id}>{u.name}{u.role ? ` · ${u.role}` : ''}</option>)}
+                      </select></label>
+                    <label className="block"><span className="block font-semibold mb-0.5">Message (optional)</span>
+                      <input value={askNote} maxLength={200} onChange={(e) => setAskNote(e.target.value)} placeholder="e.g. please check the margin" className="w-full border border-slate-200 rounded-lg px-2 py-1.5" /></label>
+                  </div>
+                  <p className="text-[11px] text-slate-500">They can change anything, prices included, then approve or send it back. The quote is saved when you ask.</p>
+                  <div className="flex gap-2 pt-1">
+                    <button onClick={sendAsk} disabled={!askTarget} className="px-3 py-1.5 rounded-full bg-slate-900 text-white font-semibold disabled:opacity-40 cursor-pointer">Ask</button>
+                    <button onClick={() => setAskOpen(false)} className="px-3 py-1.5 rounded-full border border-slate-300 font-semibold cursor-pointer">Cancel</button>
+                  </div>
                 </div>
               )}
             </div>

@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Archive, ArchiveRestore, ArrowRight, Building, Clock, Play, Plus, Trash2, TriangleAlert } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { attentionList, canArchive, canDeleteForever, followUpState, isArchived, WAITING_LABEL } from '@/lib/quote-lifecycle';
+import { approvalState, inboxFor } from '@/lib/quote-approval';
 import type { QuotationCase } from '@/types';
 
 type Tab = 'active' | 'hold' | 'archived';
@@ -37,6 +38,7 @@ export default function ActiveCasesPage() {
     };
   }, [activeCases]);
   const rows = lists[tab];
+  const waitingForMe = useMemo(() => inboxFor(activeCases, who, new Date()).filter((i) => i.needsAction), [activeCases, who?.id]);
   const attention = useMemo(() => attentionList(activeCases, today), [activeCases, today]);
 
   const open = (id: string) => { loadCase(id); router.push('/agent/quotation'); };
@@ -63,6 +65,19 @@ export default function ActiveCasesPage() {
         <Clock className="w-3 h-3" /> {WAITING_LABEL[w.reason]}{w.followUp ? ` · ${w.followUp}` : ''}
       </span>
     );
+  };
+
+  const approvalBadge = (c: QuotationCase) => {
+    const q = c.templateState;
+    const a = q?.lifecycle?.approval;
+    if (!q || !a || isArchived(q.lifecycle)) return null;
+    const st = approvalState(q);
+    const [text, tone] =
+      st === 'awaiting' ? [`Awaiting ${a.requestedFromName}`, 'bg-blue-50 text-blue-700 border-blue-200']
+      : st === 'approved' ? [`Approved by ${a.decidedByName ?? a.requestedFromName}`, 'bg-emerald-50 text-emerald-700 border-emerald-200']
+      : st === 'sent_back' ? ['Sent back', 'bg-amber-50 text-amber-800 border-amber-200']
+      : ['Changed since approval', 'bg-amber-50 text-amber-800 border-amber-200'];
+    return <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold border ${tone}`}>{text}</span>;
   };
 
   const actions = (c: QuotationCase) => {
@@ -94,6 +109,23 @@ export default function ActiveCasesPage() {
     <div className="flex-1 flex flex-col h-full bg-transparent overflow-hidden text-slate-900 select-none">
       <main className="flex-1 space-y-4 overflow-y-auto">
         {note && <div role="status" className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-800 shadow-xs">{note}</div>}
+
+        {waitingForMe.length > 0 && (
+          <section className="rounded-2xl border border-blue-200 bg-blue-50/60 p-4" data-testid="waiting-for-me">
+            <h2 className="text-sm font-bold text-blue-900 mb-2">Waiting for your approval ({waitingForMe.length})</h2>
+            <ul className="space-y-1.5">
+              {waitingForMe.map((a) => (
+                <li key={a.key}>
+                  <button onClick={() => open(a.caseId)} className="w-full text-left flex flex-wrap items-baseline gap-x-2 rounded-lg bg-white/80 hover:bg-white border border-blue-100 px-3 py-2 text-xs cursor-pointer">
+                    <span className="font-mono font-bold text-[#FF4D6D]">{a.caseRef}</span>
+                    <span className="font-semibold text-slate-800">{a.clientName}</span>
+                    <span className="text-blue-900">{a.text}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
 
         {attention.length > 0 && (
           <section className="rounded-2xl border border-amber-200 bg-amber-50/60 p-4">
@@ -147,6 +179,7 @@ export default function ActiveCasesPage() {
                       <div className="font-mono font-bold text-sm whitespace-nowrap">Rs. {new Intl.NumberFormat('en-PK').format(c.totalPKR)}</div>
                     </div>
                     {waitingBadge(c)}
+                    {approvalBadge(c)}
                     <div className="flex items-center justify-between text-xs text-slate-500 font-mono pt-2 border-t border-slate-100">
                       <span>{c.itemCount} items · {c.templateState?.lifecycle?.ownerName ?? 'no owner'}</span>
                       {actions(c)}
@@ -178,6 +211,7 @@ export default function ActiveCasesPage() {
                           <div className="flex flex-col items-start gap-1">
                             <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-mono border font-bold ${statusBadge(c.status)}`}>{c.status}</span>
                             {waitingBadge(c)}
+                            {approvalBadge(c)}
                           </div>
                         </td>
                         <td className="py-3.5 px-5 text-xs text-slate-600">{c.templateState?.lifecycle?.ownerName ?? <span className="text-slate-400">not recorded</span>}</td>
