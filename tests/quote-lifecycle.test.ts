@@ -86,3 +86,11 @@ test('attention list: overdue first, skips archived and completed', () => {
   const list = attentionList([c, b, a, d, e], '2026-11-18');
   assert.deepEqual(list.map((i) => `${i.caseRef}:${i.kind}`), ['A:overdue', 'B:today', 'C:expiring']);
 });
+
+test('wording that hints at used stock is flagged, a normal item is not', () => {
+  const line = (description: string) => ({ id: 'l1', description, brand: '', partNumber: '', qty: 1, uom: 'PCS', unitCost: 10, marginPct: 10, unitPrice: 11, total: 11 });
+  const bad = lifecycleChecks(quote({ lineItems: [line('Pump X (used)')] }), '2026-11-18');
+  assert.ok(bad.some((c) => c.code === 'condition_wording'));
+  const ok = lifecycleChecks(quote({ lineItems: [line('Pump X')] }), '2026-11-18');
+  assert.ok(!ok.some((c) => c.code === 'condition_wording'));
+});

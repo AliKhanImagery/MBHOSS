@@ -41,6 +41,7 @@ export async function fetchDatabankFromCloud(): Promise<DataBankItem[] | null> {
       lastCheckedDate: row.last_checked_date,
       category: row.category || undefined,
       notes: row.notes || undefined,
+      condition: row.condition === 'preowned' ? 'preowned' : 'new',
     }));
   } catch (err: any) {
     console.warn('[Supabase] fetchDatabankFromCloud network error:', err.message);
@@ -58,10 +59,17 @@ export async function syncDatabankItemToCloud(item: DataBankItem): Promise<boole
       last_checked_date: item.lastCheckedDate,
       category: item.category || null,
       notes: item.notes || null,
+      condition: item.condition === 'preowned' ? 'preowned' : 'new',
       updated_at: new Date().toISOString(),
     };
 
-    const { error } = await supabase.from('databank_items').upsert(payload);
+    let { error } = await supabase.from('databank_items').upsert(payload);
+    if (error && /condition/i.test(error.message)) {
+      // The "condition" column has not been added yet (supabase/databank_condition.sql). Save everything else.
+      console.warn('[Supabase] databank_items has no "condition" column yet — run supabase/databank_condition.sql');
+      const { condition: _omit, ...rest } = payload;
+      ({ error } = await supabase.from('databank_items').upsert(rest));
+    }
     if (error) {
       console.warn('[Supabase] syncDatabankItemToCloud error:', error.message);
       return false;

@@ -16,7 +16,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
-import { DataBankItem } from '@/types';
+import { DataBankItem, ItemCondition } from '@/types';
 
 export default function DataBankPage() {
   const { dataBank, addDataBankItem, updateDataBankItem, deleteDataBankItem } = useApp();
@@ -30,8 +30,11 @@ export default function DataBankPage() {
   const [formPrice, setFormPrice] = useState('');
   const [formDate, setFormDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [formCategory, setFormCategory] = useState('Switchgear & Relays');
+  const [formCondition, setFormCondition] = useState<ItemCondition>('new');
+  const [show, setShow] = useState<'all' | ItemCondition>('all');
 
   const filteredItems = dataBank.filter((item) => {
+    if (show !== 'all' && (item.condition ?? 'new') !== show) return false;
     const s = searchTerm.toLowerCase();
     return (
       item.company.toLowerCase().includes(s) ||
@@ -51,6 +54,7 @@ export default function DataBankPage() {
         pricePKR: parseFloat(formPrice),
         lastCheckedDate: formDate,
         category: formCategory,
+        condition: formCondition,
       });
       setEditingId(null);
     } else {
@@ -60,6 +64,7 @@ export default function DataBankPage() {
         pricePKR: parseFloat(formPrice),
         lastCheckedDate: formDate,
         category: formCategory,
+        condition: formCondition,
       });
     }
 
@@ -76,6 +81,7 @@ export default function DataBankPage() {
     setFormPrice(item.pricePKR.toString());
     setFormDate(item.lastCheckedDate);
     setFormCategory(item.category || 'Switchgear & Relays');
+    setFormCondition(item.condition ?? 'new');
     setShowAddModal(true);
   };
 
@@ -95,6 +101,17 @@ export default function DataBankPage() {
               className="w-full bg-white border border-slate-200/80 rounded-full pl-11 pr-4 py-2 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#FF4D6D] font-mono shadow-xs"
             />
           </div>
+          <div className="flex items-center gap-1 text-xs" role="group" aria-label="Show">
+            {([['all', 'All'], ['new', 'New'], ['preowned', 'Pre-owned']] as const).map(([k, label]) => (
+              <button
+                key={k}
+                onClick={() => setShow(k)}
+                className={`px-3 py-1.5 rounded-full border font-semibold cursor-pointer ${show === k ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
           <div className="flex items-center space-x-2">
             <button
               onClick={() => {
@@ -102,6 +119,7 @@ export default function DataBankPage() {
                 setFormCompany('');
                 setFormMachine('');
                 setFormPrice('');
+                setFormCondition('new');
                 setShowAddModal(true);
               }}
               className="flex items-center space-x-1.5 px-4 sm:px-5 py-2 rounded-full bg-slate-900 hover:bg-black text-white text-xs sm:text-sm font-bold shadow-xs cursor-pointer transition-all"
@@ -130,6 +148,9 @@ export default function DataBankPage() {
               </div>
               <div className="text-sm font-medium text-slate-700">
                 {item.machineName}
+                {item.condition === 'preowned' && (
+                  <span className="ml-1 text-[10px] font-bold uppercase tracking-wide bg-amber-50 text-amber-800 border border-amber-200 px-1.5 py-0.5 rounded-full" title="Internal only — never shown to customers">Pre-owned</span>
+                )}
               </div>
               <div className="flex items-center justify-between text-xs text-slate-500 font-mono pt-2 border-t border-slate-100">
                 <span className="bg-slate-100 px-2.5 py-0.5 rounded-full border border-slate-200">
@@ -189,7 +210,12 @@ export default function DataBankPage() {
                       </div>
                     </td>
                     <td className="py-3.5 px-5">
-                      <div className="font-semibold text-slate-800 text-sm">{item.machineName}</div>
+                      <div className="font-semibold text-slate-800 text-sm">
+                        {item.machineName}
+                        {item.condition === 'preowned' && (
+                    <span className="ml-1 text-[10px] font-bold uppercase tracking-wide bg-amber-50 text-amber-800 border border-amber-200 px-1.5 py-0.5 rounded-full" title="Internal only — never shown to customers">Pre-owned</span>
+                  )}
+                      </div>
                       {item.notes && (
                         <div className="text-xs text-slate-400 mt-0.5">{item.notes}</div>
                       )}
@@ -307,6 +333,21 @@ export default function DataBankPage() {
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 focus:outline-none focus:border-[#FF4D6D] focus:bg-white font-mono"
                   />
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Condition:
+                </label>
+                <select
+                  value={formCondition}
+                  onChange={(e) => setFormCondition(e.target.value as ItemCondition)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 focus:outline-none focus:border-[#FF4D6D] focus:bg-white"
+                >
+                  <option value="new">New</option>
+                  <option value="preowned">Pre-owned (almost-new surplus stock)</option>
+                </select>
+                <p className="mt-1 text-[11px] text-slate-500">Internal only. It is never printed on a quote or shown to a customer.</p>
               </div>
 
               <div>

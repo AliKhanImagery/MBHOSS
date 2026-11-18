@@ -123,3 +123,16 @@ test('terms can be reworded and removed for one quote, nothing else changes', as
   const bad = applyOps(q0, [{ op: 'remove_term', index: 9 }, { op: 'edit_term', index: 0, text: '  ' }], { dataBank: [], rules, instruction: '' });
   assert.equal(bad.results.filter((r) => r.status === 'rejected').length, 2);
 });
+
+test('pre-owned Data Bank item is flagged on the line (internal) and defaults to new', () => {
+  const b2: DataBankItem[] = [
+    { id: 'n1', company: 'Acme', machineName: 'Pump X', pricePKR: 100000, lastCheckedDate: '2026-11-01' },
+    { id: 'p1', company: 'Closed Plant', machineName: 'Pump X', pricePKR: 60000, lastCheckedDate: '2026-11-01', condition: 'preowned' },
+  ];
+  const c = { dataBank: b2, rules, instruction: 'x', newId: () => `Z${++n}` };
+  const a = applyOps(blankQuote(rules), [{ op: 'add_line', dataBankId: 'n1', qty: 1, marginPct: 10 }], c).quote.lineItems[0];
+  const p = applyOps(blankQuote(rules), [{ op: 'add_line', dataBankId: 'p1', qty: 1, marginPct: 10 }], c).quote.lineItems[0];
+  assert.equal(a.preowned, undefined);
+  assert.equal(p.preowned, true);
+  assert.equal(p.description, 'Pump X', 'the description never carries the condition');
+});
