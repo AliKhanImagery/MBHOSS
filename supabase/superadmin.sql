@@ -9,20 +9,18 @@
 -- It changes only this one person's row. It never deletes or touches anyone else.
 -- ============================================================================
 
+-- Step 1: if a row for this email already exists, make it Super Admin (keeps name and any quote range).
+update public.team_members
+   set role = 'Super Admin',
+       features = coalesce(features, '{}'::jsonb)
+                  || '{"directPdfExport": true, "dataBankWrite": true, "marginOverride": true, "whatsappBot": true}'::jsonb
+ where lower(email) = 'alikhanimagery@gmail.com';
+
+-- Step 2: if there was no row, create it. (Does nothing when step 1 found one.)
 insert into public.team_members (name, email, role, avatar, features)
-values (
-  'Ali Khan',
-  'alikhanimagery@gmail.com',
-  'Super Admin',
-  'AK',
-  '{"directPdfExport": true, "dataBankWrite": true, "marginOverride": true, "whatsappBot": true}'::jsonb
-)
-on conflict (lower(email)) do update
-  set role = 'Super Admin',
-      name = coalesce(public.team_members.name, excluded.name),
-      avatar = coalesce(public.team_members.avatar, excluded.avatar),
-      -- keep any quote number range already assigned; only switch the permissions on
-      features = coalesce(public.team_members.features, '{}'::jsonb) || excluded.features;
+select 'Ali Khan', 'alikhanimagery@gmail.com', 'Super Admin', 'AK',
+       '{"directPdfExport": true, "dataBankWrite": true, "marginOverride": true, "whatsappBot": true}'::jsonb
+ where not exists (select 1 from public.team_members where lower(email) = 'alikhanimagery@gmail.com');
 
 -- Check: should show one row with role 'Super Admin'.
 select id, name, email, role, features from public.team_members where lower(email) = 'alikhanimagery@gmail.com';
