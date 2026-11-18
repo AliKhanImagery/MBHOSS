@@ -290,12 +290,13 @@ export function applyOps(start: QuotationTemplate, ops: QuoteOp[], ctx: ApplyCon
           total: Math.round(op.qty * unitPrice),
           dataBankId: bankItem?.id,
           costSource,
+          ...(bankItem?.condition === 'preowned' ? { preowned: true } : {}),
         };
         q.lineItems.push(line);
         return done(
           i,
           'add_line',
-          `Added ${op.qty} × ${description} at Rs. ${formatPKR(unitPrice)} each (${marginPct}% margin).`
+          `Added ${op.qty} × ${description} at Rs. ${formatPKR(unitPrice)} each (${marginPct}% margin).${line.preowned ? ' (Pre-owned stock — internal note, not shown to the customer.)' : ''}`
         );
       }
 

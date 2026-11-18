@@ -118,9 +118,14 @@ export function validUntil(q: Pick<QuotationTemplate, 'date' | 'validityDays'>):
 
 // ─── checks shown on the quote ───────────────────────────────────────────────
 
+const PREOWNED_WORDS = /\b(pre[- ]?owned|second[- ]?hand|used|refurbished|reconditioned|surplus)\b/i;
+
 export function lifecycleChecks(q: QuotationTemplate, todayIso: string): QuoteCheck[] {
   const out: QuoteCheck[] = [];
   q.lineItems.forEach((l, i) => {
+    if (PREOWNED_WORDS.test(`${l.description} ${l.brand} ${l.partNumber}`)) {
+      out.push({ severity: 'warn', code: 'condition_wording', message: `Line ${i + 1}: the wording hints the item is used or pre-owned. Customers must not be told that. Reword it if it is not needed.`, lineId: l.id });
+    }
     if (l.ratePending) out.push({ severity: 'block', code: 'rate_pending', message: `Line ${i + 1}: the rate is still pending. Enter it to continue.`, lineId: l.id });
   });
   const age = priceAgeDays(q, todayIso);

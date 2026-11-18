@@ -524,6 +524,7 @@ function QuotationContent() {
                         ) : (
                           <span className="font-mono">{formatPKR(l.unitPrice)}</span>
                         )}
+                        {l.preowned && <span className="mt-0.5 mr-1 inline-block text-[10px] font-bold uppercase bg-amber-50 text-amber-800 border border-amber-200 px-1.5 rounded-full print:hidden" title="Internal only — not printed, not in the Word file">Pre-owned · internal</span>}
                         <label className="mt-0.5 inline-flex items-center gap-1 text-[10px] text-slate-500 cursor-pointer print:hidden"><input type="checkbox" checked={!!l.ratePending} onChange={(e) => updateLineItem(l.id, { ratePending: e.target.checked })} /> rate pending</label>
                       </td>
                       <td className="py-1.5 px-1.5 text-right font-mono font-semibold">{formatPKR(l.total)}</td>
@@ -600,7 +601,7 @@ function QuotationContent() {
                 <tbody>
                   {q.lineItems.map((l, i) => (
                     <tr key={l.id} className="border-t border-slate-100">
-                      <td className="py-1.5 pr-2 truncate max-w-[220px]">{i + 1}. {l.description || '—'}</td>
+                      <td className="py-1.5 pr-2 truncate max-w-[220px]">{i + 1}. {l.description || '—'}{l.preowned && <span className="ml-1 text-[10px] font-bold uppercase text-amber-800">Pre-owned</span>}</td>
                       <td><input type="number" min={0} className="w-24 border border-slate-200 rounded px-1.5 py-0.5" value={l.unitCost || ''} onChange={(e) => updateLineItem(l.id, { unitCost: Number(e.target.value) || 0 })} /></td>
                       <td><input type="number" min={0} className="w-16 border border-slate-200 rounded px-1.5 py-0.5" value={l.marginPct || ''} onChange={(e) => updateLineItem(l.id, { marginPct: Number(e.target.value) || 0 })} /></td>
                       <td className="text-right font-mono">{formatPKR(l.unitPrice)}</td>

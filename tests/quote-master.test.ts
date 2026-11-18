@@ -56,3 +56,10 @@ test('end to end on the real master fixture: filled values appear, header/footer
   const body = await z.file('word/document.xml')!.async('string');
   assert.ok(body.includes('ACME Ltd') && body.includes('Test subject'));
 });
+
+test('a pre-owned line is never sent to the Word file or the customer text', () => {
+  const q = { ...blankQuote(rules), quoteRef: 'Q1', clientName: 'ACME', subject: 's',
+    lineItems: [{ id: 'a', description: 'Pump X', brand: 'B', partNumber: 'P1', qty: 1, uom: 'PCS', unitPrice: 100, total: 100, unitCost: 60, marginPct: 40, preowned: true, dataBankId: 'p1' }], subtotal: 100, grandTotal: 100 } as never;
+  const json = JSON.stringify(buildFillData(q, tpl(), 'Ali Khan'));
+  assert.ok(!/pre-?owned|used|condition/i.test(json));
+});

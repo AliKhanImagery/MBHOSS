@@ -22,6 +22,9 @@ export interface User {
   };
 }
 
+/** Internal only. Customers never see this; it is never printed on a quote or Word file. */
+export type ItemCondition = 'new' | 'preowned';
+
 export interface DataBankItem {
   id: string;
   company: string; // Supplier name
@@ -30,6 +33,7 @@ export interface DataBankItem {
   lastCheckedDate: string; // YYYY-MM-DD
   category?: string;
   notes?: string;
+  condition?: ItemCondition; // missing = 'new'
 }
 
 export interface QuoteLineItem {
@@ -45,6 +49,7 @@ export interface QuoteLineItem {
   total: number; // qty * unitPrice
   dataBankId?: string; // Data Bank row the cost came from (traceability)
   costSource?: 'databank' | 'user'; // 'user' = cost was typed/stated by a person, never by the AI
+  preowned?: boolean; // INTERNAL: copied from the Data Bank item. Never printed or sent to the customer.
   ratePending?: boolean; // the supplier rate has not come yet; the quote cannot be downloaded until it does
 }
 
