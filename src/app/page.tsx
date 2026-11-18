@@ -33,9 +33,10 @@ export default function MainDashboardPage() {
     startNewQuote,
     officeTemplate,
     isAdmin,
-    activeCases,
+    activeCases: allCases,
     dataBank,
   } = useApp();
+  const activeCases = allCases.filter((c) => !c.templateState?.lifecycle?.archived); // archived quotes are hidden
 
   const [heroPrompt, setHeroPrompt] = useState('');
   const carouselRef = useRef<HTMLDivElement>(null);

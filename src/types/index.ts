@@ -45,6 +45,31 @@ export interface QuoteLineItem {
   total: number; // qty * unitPrice
   dataBankId?: string; // Data Bank row the cost came from (traceability)
   costSource?: 'databank' | 'user'; // 'user' = cost was typed/stated by a person, never by the AI
+  ratePending?: boolean; // the supplier rate has not come yet; the quote cannot be downloaded until it does
+}
+
+export type WaitingReason = 'rate_pending' | 'ceo_confirming' | 'client_clarification' | 'market_news' | 'other';
+
+/** Why a quote is on hold, who has the next move, and when to look at it again. */
+export interface WaitingInfo {
+  reason: WaitingReason;
+  note: string;
+  owner: string; // name of the person who has the next move
+  followUp: string | null; // YYYY-MM-DD
+  since: string; // ISO time the hold started
+  by: string; // who put it on hold
+}
+
+export interface LifecycleEvent { at: string; by: string; text: string }
+
+/** Life of a quote beyond its content. Stored inside the quote (no database change). */
+export interface Lifecycle {
+  ownerId?: string;
+  ownerName?: string;
+  waiting?: WaitingInfo | null;
+  archived?: { at: string; by: string } | null;
+  pricesConfirmedAt?: string; // YYYY-MM-DD, set when someone rechecks the prices
+  log?: LifecycleEvent[];
 }
 
 /**
@@ -69,6 +94,7 @@ export interface QuotationTemplate {
   taxAmount: number;
   grandTotal: number;
   notes: string[];
+  lifecycle?: Lifecycle;
   subject?: string; // Word-master quotes: the SUBJECT line (never taken from the sample)
   greeting?: string; // Word-master quotes: undefined = keep the master's greeting
   intro?: string; // Word-master quotes: undefined = keep the master's opening paragraph
