@@ -32,3 +32,29 @@ test('provider choice: Gemini by default, Claude only when asked or when it is t
   assert.equal(typeof providerFromEnv({ GEMINI_API_KEY: 'g' }), 'function');
   assert.equal(typeof providerFromEnv({ ANTHROPIC_API_KEY: 'a' }), 'function');
 });
+
+test('a retired model (404) falls through to the next; Gemini 3 requests carry no temperature', async () => {
+  const sent: { url: string; body: any }[] = [];
+  globalThis.fetch = (async (u: string, init: { body: string }) => {
+    sent.push({ url: u, body: JSON.parse(init.body) });
+    return sent.length === 1 ? reply(404, { error: { message: 'no longer available to new users' } }) : ok('{"ops":[]}');
+  }) as unknown as typeof fetch;
+  try {
+    const out = await geminiProvider('k', ['gemini-2.5-flash-lite', 'gemini-3.5-flash-lite'])('s', [{ role: 'user', content: 'x' }]);
+    assert.equal(out, '{"ops":[]}');
+    assert.equal(sent[0].body.generationConfig.temperature, 0);
+    assert.equal('temperature' in sent[1].body.generationConfig, false);
+    assert.ok(sent[1].body.generationConfig.maxOutputTokens >= 4096);
+  } finally { globalThis.fetch = realFetch; }
+});
+
+test('owner-listed models come first and the built-in list is always appended (no duplicates)', async () => {
+  const urls: string[] = [];
+  globalThis.fetch = (async (u: string) => { urls.push(u); return reply(404, { error: 'gone' }); }) as unknown as typeof fetch;
+  try {
+    const p = providerFromEnv({ GEMINI_API_KEY: 'k', GEMINI_MODELS: 'gemini-2.5-flash-lite, gemini-3.5-flash-lite' });
+    await assert.rejects(() => p('s', [{ role: 'user', content: 'x' }]));
+    const names = urls.map((u) => u.match(/models\/([^:]+):/)![1]);
+    assert.deepEqual(names, ['gemini-2.5-flash-lite', 'gemini-3.5-flash-lite', 'gemini-3.6-flash', 'gemini-2.5-flash']);
+  } finally { globalThis.fetch = realFetch; }
+});
