@@ -609,6 +609,13 @@ function QuotationContent() {
                           <span className="font-mono">{formatPKR(l.unitPrice)}</span>
                         )}
                         {l.preowned && <span className="mt-0.5 mr-1 inline-block text-[10px] font-bold uppercase bg-amber-50 text-amber-800 border border-amber-200 px-1.5 rounded-full print:hidden" title="Internal only — not printed, not in the Word file">Pre-owned · internal</span>}
+                        {l.costSource === 'picture' && (
+                          <label className="mt-0.5 block text-[10px] text-amber-900 bg-amber-50 border border-amber-200 rounded px-1.5 py-1 text-left cursor-pointer print:hidden" title="Read from the picture by the AI">
+                            <input type="checkbox" className="mr-1 align-middle" checked={!!l.pictureChecked} onChange={(e) => updateLineItem(l.id, { pictureChecked: e.target.checked })} />
+                            Picture cost Rs. {formatPKR(l.unitCost)} — I checked it
+                            {l.pictureNote && <span className="block text-amber-800/80 truncate max-w-[200px]">“{l.pictureNote}”</span>}
+                          </label>
+                        )}
                         <label className="mt-0.5 inline-flex items-center gap-1 text-[10px] text-slate-500 cursor-pointer print:hidden"><input type="checkbox" checked={!!l.ratePending} onChange={(e) => updateLineItem(l.id, { ratePending: e.target.checked })} /> rate pending</label>
                       </td>
                       <td className="py-1.5 px-1.5 text-right font-mono font-semibold">{formatPKR(l.total)}</td>

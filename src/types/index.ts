@@ -48,7 +48,9 @@ export interface QuoteLineItem {
   unitPrice: number; // Selling unit price after margin
   total: number; // qty * unitPrice
   dataBankId?: string; // Data Bank row the cost came from (traceability)
-  costSource?: 'databank' | 'user'; // 'user' = cost was typed/stated by a person, never by the AI
+  costSource?: 'databank' | 'user' | 'picture'; // 'user' = typed by a person; 'picture' = read by the AI from an attached picture (a person must check it)
+  pictureNote?: string; // for 'picture': the exact text the AI says it read, shown next to the line so a person can compare
+  pictureChecked?: boolean; // a person compared the price with the picture
   preowned?: boolean; // INTERNAL: copied from the Data Bank item. Never printed or sent to the customer.
   ratePending?: boolean; // the supplier rate has not come yet; the quote cannot be downloaded until it does
 }

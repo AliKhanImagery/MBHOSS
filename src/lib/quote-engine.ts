@@ -33,6 +33,8 @@ export type QuoteOp =
       brand?: string;
       partNumber?: string;
       unitCost?: number;
+      fromPicture?: boolean; // the cost was read from the picture attached to this message
+      pictureText?: string; // the exact text read from the picture
     }
   | {
       op: 'update_line';
@@ -42,6 +44,8 @@ export type QuoteOp =
       unitCost?: number;
       description?: string;
       uom?: string;
+      fromPicture?: boolean;
+      pictureText?: string;
     }
   | { op: 'set_all_margins'; marginPct: number }
   | { op: 'remove_line'; lineId: string }
@@ -55,6 +59,8 @@ export interface ApplyContext {
   rules: TemplateRules;
   /** The user's own words for this request — used to verify any price the AI says they stated. */
   instruction: string;
+  /** True only when a picture is attached to THIS message. Prices may then be read from it (and a person must check them). */
+  hasImage?: boolean;
   newId?: () => string;
 }
 
@@ -245,7 +251,8 @@ export function applyOps(start: QuotationTemplate, ops: QuoteOp[], ctx: ApplyCon
 
         let unitCost: number;
         let description: string;
-        let costSource: 'databank' | 'user';
+        let costSource: 'databank' | 'user' | 'picture';
+        let pictureNote = '';
         let brand = '';
         let partNumber = '';
 
@@ -263,15 +270,18 @@ export function applyOps(start: QuotationTemplate, ops: QuoteOp[], ctx: ApplyCon
           if (!isNum(op.unitCost) || op.unitCost <= 0) {
             return ask(i, 'add_line', `"${description}" is not in the Data Bank. What is its cost price?`);
           }
-          if (!costStatedByUser(ctx.instruction, op.unitCost)) {
+          const typed = costStatedByUser(ctx.instruction, op.unitCost);
+          const fromPic = !typed && ctx.hasImage === true && op.fromPicture === true;
+          if (!typed && !fromPic) {
             return reject(
               i,
               'add_line',
-              `I can only use a price from the Data Bank or one you typed yourself, so I did not add "${description}".`
+              `I can only use a price from the Data Bank, one you typed, or one read from a picture attached to this message, so I did not add "${description}".`
             );
           }
           unitCost = op.unitCost;
-          costSource = 'user';
+          costSource = fromPic ? 'picture' : 'user';
+          if (fromPic) pictureNote = clean(op.pictureText, 120);
           if (appearsIn(clean(op.brand, 60), ctx.instruction)) brand = clean(op.brand, 60);
           if (appearsIn(clean(op.partNumber, 60), ctx.instruction)) partNumber = clean(op.partNumber, 60);
         }
@@ -290,13 +300,14 @@ export function applyOps(start: QuotationTemplate, ops: QuoteOp[], ctx: ApplyCon
           total: Math.round(op.qty * unitPrice),
           dataBankId: bankItem?.id,
           costSource,
+          ...(costSource === 'picture' ? { pictureNote, pictureChecked: false } : {}),
           ...(bankItem?.condition === 'preowned' ? { preowned: true } : {}),
         };
         q.lineItems.push(line);
         return done(
           i,
           'add_line',
-          `Added ${op.qty} × ${description} at Rs. ${formatPKR(unitPrice)} each (${marginPct}% margin).${line.preowned ? ' (Pre-owned stock — internal note, not shown to the customer.)' : ''}`
+          `Added ${op.qty} × ${description} at Rs. ${formatPKR(unitPrice)} each (${marginPct}% margin).${line.costSource === 'picture' ? ' Price read from your picture: please check it against the picture.' : ''}${line.preowned ? ' (Pre-owned stock — internal note, not shown to the customer.)' : ''}`
         );
       }
 
@@ -323,15 +334,19 @@ export function applyOps(start: QuotationTemplate, ops: QuoteOp[], ctx: ApplyCon
           notes.push(`margin ${op.marginPct}%`);
         }
         if (op.unitCost !== undefined) {
-          if (!isNum(op.unitCost) || op.unitCost <= 0 || !costStatedByUser(ctx.instruction, op.unitCost)) {
+          const typed = isNum(op.unitCost) && costStatedByUser(ctx.instruction, op.unitCost);
+          const fromPic = !typed && ctx.hasImage === true && op.fromPicture === true;
+          if (!isNum(op.unitCost) || op.unitCost <= 0 || (!typed && !fromPic)) {
             return reject(
               i,
               'update_line',
-              `Line ${n}: I can only change a cost price to a number you typed yourself.`
+              `Line ${n}: I can only change a cost price to a number you typed, or one read from a picture attached to this message.`
             );
           }
           line.unitCost = op.unitCost;
-          line.costSource = 'user';
+          line.costSource = fromPic ? 'picture' : 'user';
+          if (fromPic) { line.pictureNote = clean(op.pictureText, 120); line.pictureChecked = false; }
+          else { delete line.pictureNote; delete line.pictureChecked; }
           repriced = true;
           notes.push(`cost Rs. ${formatPKR(op.unitCost)}`);
         }
