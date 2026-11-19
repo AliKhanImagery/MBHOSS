@@ -136,3 +136,44 @@ test('pre-owned Data Bank item is flagged on the line (internal) and defaults to
   assert.equal(p.preowned, true);
   assert.equal(p.description, 'Pump X', 'the description never carries the condition');
 });
+
+// ─── prices read from an attached picture ───────────────────────────────────
+import { lifecycleChecks } from '../src/lib/quote-lifecycle';
+
+const picOp = { op: 'add_line' as const, description: 'Valve DN50', qty: 2, marginPct: 30, unitCost: 14500, uom: 'PCS', fromPicture: true, pictureText: 'Valve DN50  14,500' };
+
+test('picture price: accepted only with a picture on THIS message, and flagged for a person to check', () => {
+  const ok = applyOps(blankQuote(rules), [picOp], { ...ctx('build it from the picture, 30% margin'), hasImage: true });
+  const l = ok.quote.lineItems[0];
+  assert.equal(l.costSource, 'picture');
+  assert.equal(l.unitCost, 14500);
+  assert.equal(l.pictureChecked, false);
+  assert.equal(l.pictureNote, 'Valve DN50 14,500');
+  assert.equal(l.unitPrice, Math.round(14500 * 1.3), 'margin is on top of the picture cost');
+  assert.match(ok.changes[0], /read from your picture/);
+  const no = applyOps(blankQuote(rules), [picOp], { ...ctx('build it'), hasImage: false });
+  assert.equal(no.quote.lineItems.length, 0);
+  assert.equal(no.results[0].status, 'rejected');
+});
+
+test('picture price: the model cannot skip the check by not saying fromPicture', () => {
+  const r = applyOps(blankQuote(rules), [{ ...picOp, fromPicture: false }], { ...ctx('build it'), hasImage: true });
+  assert.equal(r.quote.lineItems.length, 0);
+});
+
+test('picture price blocks download until a person ticks checked', () => {
+  const q = applyOps(blankQuote(rules), [picOp], { ...ctx('x'), hasImage: true }).quote;
+  const blocked = lifecycleChecks({ ...q, clientName: 'A' }, '2026-11-19');
+  assert.ok(blocked.some((c) => c.code === 'picture_price' && c.severity === 'block'));
+  const done = { ...q, lineItems: q.lineItems.map((l) => ({ ...l, pictureChecked: true })) };
+  assert.ok(!lifecycleChecks(done, '2026-11-19').some((c) => c.code === 'picture_price'));
+});
+
+test('a typed price still wins and needs no picture check; update_line can take a picture price too', () => {
+  const typed = applyOps(blankQuote(rules), [{ op: 'add_line', description: 'Hose', qty: 1, marginPct: 20, unitCost: 500, uom: 'PCS' }], ctx('add hose cost 500'));
+  assert.equal(typed.quote.lineItems[0].costSource, 'user');
+  const id = typed.quote.lineItems[0].id;
+  const upd = applyOps(typed.quote, [{ op: 'update_line', lineId: id, unitCost: 650, fromPicture: true, pictureText: 'Hose 650' }], { ...ctx('use the new rate'), hasImage: true });
+  assert.equal(upd.quote.lineItems[0].costSource, 'picture');
+  assert.equal(upd.quote.lineItems[0].pictureChecked, false);
+});

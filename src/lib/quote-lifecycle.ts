@@ -126,6 +126,9 @@ export function lifecycleChecks(q: QuotationTemplate, todayIso: string): QuoteCh
     if (PREOWNED_WORDS.test(`${l.description} ${l.brand} ${l.partNumber}`)) {
       out.push({ severity: 'warn', code: 'condition_wording', message: `Line ${i + 1}: the wording hints the item is used or pre-owned. Customers must not be told that. Reword it if it is not needed.`, lineId: l.id });
     }
+    if (l.costSource === 'picture' && !l.pictureChecked) {
+      out.push({ severity: 'block', code: 'picture_price', message: `Line ${i + 1}: this price was read from your picture by the AI. Compare it with the picture and tick "checked".`, lineId: l.id });
+    }
     if (l.ratePending) out.push({ severity: 'block', code: 'rate_pending', message: `Line ${i + 1}: the rate is still pending. Enter it to continue.`, lineId: l.id });
   });
   const age = priceAgeDays(q, todayIso);
