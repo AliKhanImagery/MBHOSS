@@ -4,7 +4,7 @@
 // ==============================================================================
 
 import { createClient } from '@supabase/supabase-js';
-import { DataBankItem, QuotationTemplate, QuotationCase, User } from '@/types';
+import { DataBankItem, QuotationTemplate, QuotationCase, User, SourcingOption } from '@/types';
 import { parseAuthLinkType } from '@/lib/auth-link';
 import { supabaseConfig } from '@/lib/supabase-config';
 
@@ -92,6 +92,54 @@ export async function deleteDatabankItemFromCloud(id: string): Promise<boolean> 
     return true;
   } catch (err: any) {
     console.warn('[Supabase] deleteDatabankItemFromCloud network error:', err.message);
+    return false;
+  }
+}
+
+// ─── Sourcing options (suppliers) ────────────────────────────────────────────
+// Table: supabase/sourcing_options.sql. If it has not been created yet, everything keeps working on this device.
+
+export async function fetchSourcingOptionsFromCloud(): Promise<SourcingOption[] | null> {
+  try {
+    const { data, error } = await supabase.from('sourcing_options').select('id, data').order('created_at', { ascending: false });
+    if (error) {
+      console.warn('[Supabase] sourcing_options not readable (run supabase/sourcing_options.sql):', error.message);
+      return null;
+    }
+    if (!data || data.length === 0) return null;
+    return data.map((row: any) => ({ ...(row.data as SourcingOption), id: row.id }));
+  } catch (err: any) {
+    console.warn('[Supabase] fetchSourcingOptionsFromCloud network error:', err.message);
+    return null;
+  }
+}
+
+export async function syncSourcingOptionToCloud(option: SourcingOption): Promise<boolean> {
+  try {
+    const { error } = await supabase
+      .from('sourcing_options')
+      .upsert({ id: option.id, data: option, updated_at: new Date().toISOString() });
+    if (error) {
+      console.warn('[Supabase] syncSourcingOptionToCloud error:', error.message);
+      return false;
+    }
+    return true;
+  } catch (err: any) {
+    console.warn('[Supabase] syncSourcingOptionToCloud network error:', err.message);
+    return false;
+  }
+}
+
+export async function deleteSourcingOptionFromCloud(id: string): Promise<boolean> {
+  try {
+    const { error } = await supabase.from('sourcing_options').delete().eq('id', id);
+    if (error) {
+      console.warn('[Supabase] deleteSourcingOptionFromCloud error:', error.message);
+      return false;
+    }
+    return true;
+  } catch (err: any) {
+    console.warn('[Supabase] deleteSourcingOptionFromCloud network error:', err.message);
     return false;
   }
 }

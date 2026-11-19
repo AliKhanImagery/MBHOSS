@@ -23,50 +23,11 @@ import {
 } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { authHeaders } from '@/lib/supabase';
+import { toSourcingSuppliers } from '@/lib/sourcing-options';
 import { SourcingSupplier, SourcingRfqItem, SourcingDispatchPackage } from '@/types';
 
-// Default initial candidate suppliers directory
-const DEFAULT_SUPPLIERS: SourcingSupplier[] = [
-  {
-    id: 'sup-1',
-    companyName: 'Brandt Industrial Lahore',
-    contactPerson: 'Khawaja Rizwan (Sales Director)',
-    email: 'rizwan@brandtindustrial.pk',
-    phone: '+92 300 8451234',
-    categories: ['Switchgear & Relays', 'Variable Speed Drives', 'Automation'],
-    city: 'Lahore (Brandreth Rd)',
-  },
-  {
-    id: 'sup-2',
-    companyName: 'Al-Madina Switchgear & Controls',
-    contactPerson: 'Sheikh Tariq (General Manager)',
-    email: 'sales@almadinaswitchgear.com',
-    phone: '+92 321 4455667',
-    categories: ['Switchgear & Relays', 'Contactors', 'Circuit Breakers'],
-    city: 'Lahore (Brandreth Rd)',
-  },
-  {
-    id: 'sup-3',
-    companyName: 'Pak-German Automation Karachi',
-    contactPerson: 'Engr. Zeeshan Ali (Technical Head)',
-    email: 'zeeshan@pakgermanautomation.com',
-    phone: '+92 333 2145678',
-    categories: ['Automation & PLC', 'Sensors', 'Industrial Instrumentation'],
-    city: 'Karachi (Korangi Industrial)',
-  },
-  {
-    id: 'sup-4',
-    companyName: 'Apex Sanitary Piping & Valves',
-    contactPerson: 'Malik Farooq (Procurement Liaison)',
-    email: 'farooq@apexpiping.pk',
-    phone: '+92 301 7894561',
-    categories: ['Sanitary Stainless Steel', 'Valves & Fittings', 'Piping'],
-    city: 'Lahore (Badami Bagh)',
-  },
-];
-
 export default function SmartRfqDispatcherPage() {
-  const { dataBank, templateState } = useApp();
+  const { sourcingOptions, templateState } = useApp();
 
   // RFQ Master Metadata
   const [rfqRef, setRfqRef] = useState(`RFQ-2026-${Math.floor(1000 + Math.random() * 9000)}`);
@@ -74,7 +35,7 @@ export default function SmartRfqDispatcherPage() {
   const [targetDestination, setTargetDestination] = useState('Lahore Central Warehouse');
 
   // Supplier Directory State
-  const [suppliers, setSuppliers] = useState<SourcingSupplier[]>(DEFAULT_SUPPLIERS);
+  const [suppliers, setSuppliers] = useState<SourcingSupplier[]>(() => toSourcingSuppliers(sourcingOptions).suppliers);
   const [pasteSupplierText, setPasteSupplierText] = useState('');
   const [showPasteSupplier, setShowPasteSupplier] = useState(false);
 
@@ -137,24 +98,21 @@ export default function SmartRfqDispatcherPage() {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [generationEngine, setGenerationEngine] = useState<string | null>(null);
 
-  // Load verified vendors from DataBank
+  // Load suppliers from the Data Bank's Sourcing options. Only suppliers with a real email on file are
+  // loaded; nothing is invented. Those without an email are listed so they can be contacted another way.
+  const [loadNote, setLoadNote] = useState<string | null>(null);
   const handleLoadFromDataBank = () => {
-    if (!dataBank || dataBank.length === 0) return;
-    const uniqueSuppliers = Array.from(new Set(dataBank.map((i) => i.company))).map(
-      (companyName, idx) => {
-        const itemSample = dataBank.find((i) => i.company === companyName);
-        return {
-          id: `sup-db-${idx}`,
-          companyName,
-          contactPerson: 'Commercial Quotations Desk',
-          email: `sales@${companyName.toLowerCase().replace(/[^a-z0-9]/g, '')}.pk`,
-          phone: '+92 (42) 3765-0000',
-          categories: [itemSample?.category || 'Industrial Switchgear & Automation'],
-          city: 'Lahore (Brandreth Rd)',
-        };
-      }
+    const { suppliers: loaded, skipped } = toSourcingSuppliers(sourcingOptions);
+    if (loaded.length === 0) {
+      setLoadNote('No sourcing options with an email on file yet. Add them in Data Bank → Sourcing options.');
+      return;
+    }
+    setSuppliers(loaded);
+    setLoadNote(
+      skipped.length > 0
+        ? `Loaded ${loaded.length} suppliers. Not loaded (no email on file): ${skipped.map((o) => o.companyName).join(', ')}.`
+        : `Loaded ${loaded.length} suppliers.`
     );
-    setSuppliers(uniqueSuppliers);
   };
 
   // Pull items from active quotation template
@@ -367,7 +325,7 @@ export default function SmartRfqDispatcherPage() {
               <button
                 onClick={handleLoadFromDataBank}
                 className="px-2.5 py-1 text-[11px] font-bold bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-lg transition-colors cursor-pointer"
-                title="Load suppliers from DataBank"
+                title="Load suppliers from Data Bank → Sourcing options"
               >
                 DataBank Sync
               </button>
@@ -385,6 +343,9 @@ export default function SmartRfqDispatcherPage() {
               </button>
             </div>
           </div>
+          {loadNote && (
+            <p className="text-[11px] text-slate-600 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">{loadNote}</p>
+          )}
 
           {/* Paste Supplier Drawer */}
           {showPasteSupplier && (

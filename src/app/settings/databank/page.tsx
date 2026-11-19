@@ -17,9 +17,11 @@ import {
 } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { DataBankItem, ItemCondition } from '@/types';
+import SourcingOptionsPanel from '@/components/SourcingOptionsPanel';
 
 export default function DataBankPage() {
   const { dataBank, addDataBankItem, updateDataBankItem, deleteDataBankItem } = useApp();
+  const [tab, setTab] = useState<'prices' | 'sourcing'>('prices');
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -89,6 +91,24 @@ export default function DataBankPage() {
     <div className="flex-1 flex flex-col h-full bg-transparent overflow-hidden text-slate-900 select-none">
       {/* Main Content inside Clean White Card */}
       <main className="flex-1 space-y-4 overflow-y-auto">
+        <div className="flex items-center gap-1 text-sm" role="tablist" aria-label="Data Bank sections">
+          {([['prices', 'Price records'], ['sourcing', 'Sourcing options']] as const).map(([k, label]) => (
+            <button
+              key={k}
+              role="tab"
+              aria-selected={tab === k}
+              onClick={() => setTab(k)}
+              className={`px-4 py-1.5 rounded-full border font-bold cursor-pointer ${tab === k ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {tab === 'sourcing' ? (
+          <SourcingOptionsPanel />
+        ) : (
+        <>
         {/* Top Controls: Search Bar & Actions */}
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
           <div className="relative flex-1 max-w-lg">
@@ -258,6 +278,8 @@ export default function DataBankPage() {
             </table>
           </div>
         </div>
+        </>
+        )}
       </main>
 
       {/* Add / Edit Modal */}

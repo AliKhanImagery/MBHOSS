@@ -30,13 +30,13 @@ begin
   for r in
     select policyname, tablename from pg_policies
     where schemaname = 'public'
-      and tablename in ('databank_items', 'quotation_cases', 'quotations', 'template_settings', 'team_members')
+      and tablename in ('databank_items', 'quotation_cases', 'quotations', 'template_settings', 'team_members', 'sourcing_options')
   loop
     execute format('drop policy if exists %I on public.%I', r.policyname, r.tablename);
   end loop;
 
   -- Everyday data: any signed-in team member can read and write.
-  foreach t in array array['databank_items', 'quotation_cases', 'quotations'] loop
+  foreach t in array array['databank_items', 'quotation_cases', 'quotations', 'sourcing_options'] loop
     if to_regclass('public.' || t) is not null then
       execute format('alter table public.%I enable row level security', t);
       execute format('drop policy if exists team_all on public.%I', t);
@@ -80,6 +80,7 @@ end $$;
 
 -- ROLLBACK (only if something goes wrong). With RLS off the tables are open again, as before:
 -- alter table public.databank_items disable row level security;
+-- alter table public.sourcing_options disable row level security;
 -- alter table public.quotation_cases disable row level security;
 -- alter table public.quotations disable row level security;
 -- alter table public.template_settings disable row level security;

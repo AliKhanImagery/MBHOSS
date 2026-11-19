@@ -10,8 +10,10 @@ import {
   ChatMessage,
   QuoteLineItem,
   OfficeTemplate,
+  SourcingOption,
 } from '@/types';
 import { blankQuote, recalc } from '@/lib/quote-engine';
+import { PUNJAB_TANK_SEED } from '@/lib/sourcing-options';
 import type { TemplateDraft } from '@/lib/docx-template';
 import { MASTER_FILE_MARK } from '@/lib/quote-master';
 import { archive as archiveLc, canArchive, canDeleteForever, restore as restoreLc, resume as resumeLc, withOwner, type Actor } from '@/lib/quote-lifecycle';
@@ -19,6 +21,9 @@ import {
   fetchDatabankFromCloud,
   syncDatabankItemToCloud,
   deleteDatabankItemFromCloud,
+  fetchSourcingOptionsFromCloud,
+  syncSourcingOptionToCloud,
+  deleteSourcingOptionFromCloud,
   fetchCasesFromCloud,
   syncCaseToCloud,
   deleteCaseFromCloud,
@@ -99,6 +104,12 @@ interface AppContextType {
   addDataBankItem: (item: Omit<DataBankItem, 'id'>) => void;
   updateDataBankItem: (id: string, item: Partial<DataBankItem>) => void;
   deleteDataBankItem: (id: string) => void;
+
+  // Sourcing options (suppliers we could buy or fabricate from) — internal
+  sourcingOptions: SourcingOption[];
+  addSourcingOption: (option: Omit<SourcingOption, 'id'>) => void;
+  updateSourcingOption: (id: string, updates: Partial<SourcingOption>) => void;
+  deleteSourcingOption: (id: string) => void;
 
   // Users Management
   users: User[];
@@ -252,14 +263,47 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return { ok: true, savedToCloud };
   };
 
+  // Sourcing options: starts with the first list supplied by Ali; after that, only what the team saves.
+  const SOURCING_LS_KEY = 'qri_sourcing_options';
+  const sourcingNeedsPush = useRef(false);
+  const [sourcingOptions, setSourcingOptions] = useState<SourcingOption[]>(() => {
+    const stored = readJson<SourcingOption[]>(SOURCING_LS_KEY);
+    if (stored) return stored;
+    sourcingNeedsPush.current = true;
+    return PUNJAB_TANK_SEED;
+  });
+  const sourcingOptionsRef = useRef<SourcingOption[]>(sourcingOptions);
+  useEffect(() => {
+    sourcingOptionsRef.current = sourcingOptions;
+    if (typeof window !== 'undefined') localStorage.setItem(SOURCING_LS_KEY, JSON.stringify(sourcingOptions));
+  }, [sourcingOptions]);
+
+  const addSourcingOption = (option: Omit<SourcingOption, 'id'>) => {
+    const created: SourcingOption = { ...option, id: `so-${Date.now()}` };
+    setSourcingOptions((prev) => [created, ...prev]);
+    void syncSourcingOptionToCloud(created);
+  };
+  const updateSourcingOption = (id: string, updates: Partial<SourcingOption>) => {
+    const current = sourcingOptionsRef.current.find((o) => o.id === id);
+    if (!current) return;
+    const updated = { ...current, ...updates };
+    setSourcingOptions((prev) => prev.map((o) => (o.id === id ? updated : o)));
+    void syncSourcingOptionToCloud(updated);
+  };
+  const deleteSourcingOption = (id: string) => {
+    setSourcingOptions((prev) => prev.filter((o) => o.id !== id));
+    void deleteSourcingOptionFromCloud(id);
+  };
+
   // Cloud Synchronization State (Supabase)
   const [cloudStatus, setCloudStatus] = useState<'connected' | 'syncing' | 'offline'>('connected');
 
   const refreshFromCloud = async () => {
     setCloudStatus('syncing');
     try {
-      const [cloudDb, cloudCases, cloudSettings, cloudUsers] = await Promise.all([
+      const [cloudDb, cloudSourcing, cloudCases, cloudSettings, cloudUsers] = await Promise.all([
         fetchDatabankFromCloud(),
+        fetchSourcingOptionsFromCloud(),
         fetchCasesFromCloud(),
         fetchTemplateSettingsFromCloud(),
         fetchTeamMembersFromCloud(),
@@ -267,6 +311,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
       if (cloudDb && cloudDb.length > 0) {
         setDataBank(cloudDb);
+      }
+      if (cloudSourcing && cloudSourcing.length > 0) {
+        setSourcingOptions(cloudSourcing);
+      } else if (sourcingNeedsPush.current) {
+        sourcingNeedsPush.current = false;
+        sourcingOptionsRef.current.forEach((o) => void syncSourcingOptionToCloud(o)); // first list: share it with the team
       }
       if (cloudCases && cloudCases.length > 0) {
         setActiveCases(cloudCases);
@@ -619,6 +669,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         addDataBankItem,
         updateDataBankItem,
         deleteDataBankItem,
+        sourcingOptions,
+        addSourcingOption,
+        updateSourcingOption,
+        deleteSourcingOption,
         users,
         addUser,
         updateUserFeatures,

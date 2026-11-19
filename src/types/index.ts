@@ -234,3 +234,35 @@ export interface QuoteCheck {
   message: string; // plain language, shown to employees
   lineId?: string;
 }
+
+// ─── Sourcing options (Data Bank) ────────────────────────────────────────────
+// A supplier we could buy or fabricate from. Holds only what a person or a cited source told us.
+// Anything unknown stays empty — never guessed. Internal only.
+export type SourcingTier = 'confirmed' | 'to_confirm';
+
+export interface SourcingOption {
+  id: string;
+  companyName: string;
+  /** What kind of work: e.g. "Stainless steel tank fabrication". */
+  category: string;
+  /** City / area as given, e.g. "Lahore". */
+  location?: string;
+  address?: string;
+  website?: string;
+  email?: string;
+  phone?: string;
+  /** Materials / grades as given, e.g. ["SS 304", "SS 316"]. */
+  grades: string[];
+  /** What they make, in the words of the source. */
+  capabilities?: string;
+  /** confirmed = source confirmed the grades we need; to_confirm = ask on the RFQ. */
+  tier: SourcingTier;
+  /** What still has to be confirmed with the supplier (shown on the card and in the RFQ checklist). */
+  confirmOnRfq?: string;
+  /** Anything worth a second look before contacting (e.g. email domain differs from website). */
+  flag?: string;
+  /** Where this entry came from, e.g. "Google Antigravity research". */
+  source?: string;
+  addedDate: string; // YYYY-MM-DD
+  notes?: string;
+}
