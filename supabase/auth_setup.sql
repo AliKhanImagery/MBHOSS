@@ -30,7 +30,7 @@ begin
   for r in
     select policyname, tablename from pg_policies
     where schemaname = 'public'
-      and tablename in ('databank_items', 'quotation_cases', 'quotations', 'template_settings', 'team_members', 'sourcing_options')
+      and tablename in ('databank_items', 'quotation_cases', 'quotations', 'template_settings', 'team_members', 'sourcing_options', 'project_cases')
   loop
     execute format('drop policy if exists %I on public.%I', r.policyname, r.tablename);
   end loop;
@@ -67,6 +67,15 @@ begin
     create policy admin_write on public.template_settings for all to authenticated using (public.is_admin()) with check (public.is_admin());
   end if;
 
+  -- Case Tracker: owner and admins only.
+  if to_regclass('public.project_cases') is not null then
+    alter table public.project_cases enable row level security;
+    drop policy if exists owner_or_admin on public.project_cases;
+    create policy owner_or_admin on public.project_cases for all to authenticated
+      using (public.is_team_member() and (lower(owner_email) = lower(auth.jwt() ->> 'email') or public.is_admin()))
+      with check (public.is_team_member() and (lower(owner_email) = lower(auth.jwt() ->> 'email') or public.is_admin()));
+  end if;
+
   -- Team list: everyone can read their own row (needed at sign-in) and the team list; only admins change it.
   if to_regclass('public.team_members') is not null then
     alter table public.team_members enable row level security;
@@ -81,6 +90,7 @@ end $$;
 -- ROLLBACK (only if something goes wrong). With RLS off the tables are open again, as before:
 -- alter table public.databank_items disable row level security;
 -- alter table public.sourcing_options disable row level security;
+-- alter table public.project_cases disable row level security;
 -- alter table public.quotation_cases disable row level security;
 -- alter table public.quotations disable row level security;
 -- alter table public.template_settings disable row level security;

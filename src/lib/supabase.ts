@@ -4,7 +4,7 @@
 // ==============================================================================
 
 import { createClient } from '@supabase/supabase-js';
-import { DataBankItem, QuotationTemplate, QuotationCase, User, SourcingOption } from '@/types';
+import { DataBankItem, QuotationTemplate, QuotationCase, User, SourcingOption, ProjectCase } from '@/types';
 import { parseAuthLinkType } from '@/lib/auth-link';
 import { supabaseConfig } from '@/lib/supabase-config';
 
@@ -140,6 +140,40 @@ export async function deleteSourcingOptionFromCloud(id: string): Promise<boolean
     return true;
   } catch (err: any) {
     console.warn('[Supabase] deleteSourcingOptionFromCloud network error:', err.message);
+    return false;
+  }
+}
+
+// ─── Case Tracker ────────────────────────────────────────────────────────────
+// Table: supabase/project_cases.sql. If it is missing, the tracker keeps working on this device.
+
+export async function fetchProjectCasesFromCloud(): Promise<ProjectCase[] | null> {
+  try {
+    const { data, error } = await supabase.from('project_cases').select('id, owner_email, data');
+    if (error) {
+      console.warn('[Supabase] project_cases not readable (run supabase/project_cases.sql):', error.message);
+      return null;
+    }
+    if (!data || data.length === 0) return null;
+    return data.map((row: any) => ({ ...(row.data as ProjectCase), id: row.id, ownerEmail: row.owner_email }));
+  } catch (err: any) {
+    console.warn('[Supabase] fetchProjectCasesFromCloud network error:', err.message);
+    return null;
+  }
+}
+
+export async function syncProjectCaseToCloud(c: ProjectCase): Promise<boolean> {
+  try {
+    const { error } = await supabase
+      .from('project_cases')
+      .upsert({ id: c.id, owner_email: c.ownerEmail, data: c, updated_at: c.updatedAt });
+    if (error) {
+      console.warn('[Supabase] syncProjectCaseToCloud error:', error.message);
+      return false;
+    }
+    return true;
+  } catch (err: any) {
+    console.warn('[Supabase] syncProjectCaseToCloud network error:', err.message);
     return false;
   }
 }

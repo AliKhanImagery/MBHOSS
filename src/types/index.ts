@@ -266,3 +266,37 @@ export interface SourcingOption {
   addedDate: string; // YYYY-MM-DD
   notes?: string;
 }
+
+// ─── Case Tracker ────────────────────────────────────────────────────────────
+// One tracker per project / enquiry. Holds only what a person (or Claude, quoting a person) recorded.
+// Anything unknown stays empty. Cases are never deleted: they are closed.
+export type CaseStatus = 'open' | 'quoted' | 'closed';
+export type CaseUpdateKind = 'note' | 'call' | 'voice' | 'photo' | 'quote' | 'system';
+
+export interface CaseUpdate {
+  id: string;
+  at: string; // ISO timestamp
+  by: string; // name or email of who recorded it
+  via: 'app' | 'claude';
+  kind: CaseUpdateKind;
+  text: string;
+}
+
+export interface ProjectCase {
+  id: string;
+  title: string;
+  client?: string;
+  /** What the project / enquiry is, in the person's words. */
+  summary?: string;
+  /** Where it came from, as told: e.g. "Boss", "phone call", "client email". */
+  origin?: string;
+  /** Number of a quotation made for it, if any (free text, e.g. "QRI-2026-014"). */
+  quoteRef?: string;
+  status: CaseStatus;
+  nextAction?: string;
+  nextActionDue?: string; // YYYY-MM-DD
+  ownerEmail: string;
+  createdAt: string;
+  updatedAt: string;
+  updates: CaseUpdate[];
+}

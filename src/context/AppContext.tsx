@@ -11,9 +11,11 @@ import {
   QuoteLineItem,
   OfficeTemplate,
   SourcingOption,
+  ProjectCase,
 } from '@/types';
 import { blankQuote, recalc } from '@/lib/quote-engine';
 import { PUNJAB_TANK_SEED } from '@/lib/sourcing-options';
+import { addUpdate as caseAddUpdate, canSee as caseCanSee, mergeCases, newCase as caseNew, patchCase as casePatch, type CasePatch, type NewCaseInput } from '@/lib/project-cases';
 import type { TemplateDraft } from '@/lib/docx-template';
 import { MASTER_FILE_MARK } from '@/lib/quote-master';
 import { archive as archiveLc, canArchive, canDeleteForever, restore as restoreLc, resume as resumeLc, withOwner, type Actor } from '@/lib/quote-lifecycle';
@@ -21,6 +23,8 @@ import {
   fetchDatabankFromCloud,
   syncDatabankItemToCloud,
   deleteDatabankItemFromCloud,
+  fetchProjectCasesFromCloud,
+  syncProjectCaseToCloud,
   fetchSourcingOptionsFromCloud,
   syncSourcingOptionToCloud,
   deleteSourcingOptionFromCloud,
@@ -104,6 +108,12 @@ interface AppContextType {
   addDataBankItem: (item: Omit<DataBankItem, 'id'>) => void;
   updateDataBankItem: (id: string, item: Partial<DataBankItem>) => void;
   deleteDataBankItem: (id: string) => void;
+
+  // Case Tracker — the signed-in person's own cases (admins see all)
+  projectCases: ProjectCase[];
+  addProjectCase: (input: NewCaseInput) => ProjectCase | null;
+  addCaseUpdate: (id: string, input: { text: string; kind?: string }) => void;
+  patchProjectCase: (id: string, patch: CasePatch) => void;
 
   // Sourcing options (suppliers we could buy or fabricate from) — internal
   sourcingOptions: SourcingOption[];
@@ -263,6 +273,42 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return { ok: true, savedToCloud };
   };
 
+  // Case Tracker. Kept on this device and in the cloud; cases are closed, never deleted.
+  const CASES_LS_KEY = 'qri_project_cases';
+  const [allProjectCases, setAllProjectCases] = useState<ProjectCase[]>(() => readJson<ProjectCase[]>(CASES_LS_KEY) ?? []);
+  const allProjectCasesRef = useRef<ProjectCase[]>(allProjectCases);
+  useEffect(() => {
+    allProjectCasesRef.current = allProjectCases;
+    if (typeof window !== 'undefined') localStorage.setItem(CASES_LS_KEY, JSON.stringify(allProjectCases));
+  }, [allProjectCases]);
+  const caseViewer = { email: currentUser?.email ?? null, isAdmin };
+  // Empty until the page has loaded in the browser, so the server's page and the browser's first draw match.
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => setHydrated(true), []);
+  const projectCases = hydrated ? allProjectCases.filter((c) => caseCanSee(c, caseViewer)) : [];
+  const caseWho = () => ({ by: currentUser?.name || currentUser?.email || 'unknown', via: 'app' as const });
+  const saveCase = (next: ProjectCase) => {
+    setAllProjectCases((prev) => (prev.some((c) => c.id === next.id) ? prev.map((c) => (c.id === next.id ? next : c)) : [next, ...prev]));
+    void syncProjectCaseToCloud(next);
+  };
+  const addProjectCase = (input: NewCaseInput): ProjectCase | null => {
+    if (!currentUser?.email) return null;
+    const created = caseNew(input, currentUser.email, caseWho(), new Date()); // throws on a bad title/date: the screen shows the message
+    saveCase(created);
+    return created;
+  };
+  const addCaseUpdate = (id: string, input: { text: string; kind?: string }) => {
+    const c = allProjectCasesRef.current.find((x) => x.id === id);
+    if (!c || !caseCanSee(c, caseViewer)) return;
+    saveCase(caseAddUpdate(c, input, caseWho(), new Date()));
+  };
+  const patchProjectCase = (id: string, patch: CasePatch) => {
+    const c = allProjectCasesRef.current.find((x) => x.id === id);
+    if (!c || !caseCanSee(c, caseViewer)) return;
+    const next = casePatch(c, patch, caseWho(), new Date());
+    if (next !== c) saveCase(next);
+  };
+
   // Sourcing options: starts with the first list supplied by Ali; after that, only what the team saves.
   const SOURCING_LS_KEY = 'qri_sourcing_options';
   const sourcingNeedsPush = useRef(false);
@@ -301,9 +347,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const refreshFromCloud = async () => {
     setCloudStatus('syncing');
     try {
-      const [cloudDb, cloudSourcing, cloudCases, cloudSettings, cloudUsers] = await Promise.all([
+      const [cloudDb, cloudSourcing, cloudProjects, cloudCases, cloudSettings, cloudUsers] = await Promise.all([
         fetchDatabankFromCloud(),
         fetchSourcingOptionsFromCloud(),
+        fetchProjectCasesFromCloud(),
         fetchCasesFromCloud(),
         fetchTemplateSettingsFromCloud(),
         fetchTeamMembersFromCloud(),
@@ -317,6 +364,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       } else if (sourcingNeedsPush.current) {
         sourcingNeedsPush.current = false;
         sourcingOptionsRef.current.forEach((o) => void syncSourcingOptionToCloud(o)); // first list: share it with the team
+      }
+      if (cloudProjects && cloudProjects.length > 0) {
+        setAllProjectCases((prev) => mergeCases(prev, cloudProjects)); // nothing is dropped; the newer copy wins
       }
       if (cloudCases && cloudCases.length > 0) {
         setActiveCases(cloudCases);
@@ -669,6 +719,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         addDataBankItem,
         updateDataBankItem,
         deleteDataBankItem,
+        projectCases,
+        addProjectCase,
+        addCaseUpdate,
+        patchProjectCase,
         sourcingOptions,
         addSourcingOption,
         updateSourcingOption,

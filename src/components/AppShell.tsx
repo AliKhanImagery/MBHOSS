@@ -6,10 +6,12 @@ import React, { useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import NotificationBell from '@/components/NotificationBell';
+import { attention } from '@/lib/project-cases';
 import {
   LayoutDashboard,
   Sparkles,
   FolderKanban,
+  ClipboardList,
   Database,
   Users,
   LogOut,
@@ -37,7 +39,7 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
   const { hideTopBar } = useChrome();
   const pathname = usePathname();
   const router = useRouter();
-  const { currentUser, logout, activeCases, cloudStatus, refreshFromCloud, authLoading } = useApp();
+  const { currentUser, logout, activeCases, projectCases, cloudStatus, refreshFromCloud, authLoading } = useApp();
 
   // Invite and password-reset links must land on the set-password screen, not the app
   useEffect(() => {
@@ -53,6 +55,8 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
   if (authLoading) {
     return <div className="h-[100dvh] w-screen flex items-center justify-center bg-[#F4F5F7] text-sm text-slate-500">Loading…</div>;
   }
+
+  const trackerNeeds = attention(projectCases, new Date().toISOString().slice(0, 10)).filter((a) => a.reason !== 'no_next_action').length;
 
   const navItems = [
     {
@@ -76,6 +80,14 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
       icon: FolderKanban,
       active: pathname === '/cases',
       count: activeCases.filter((c) => !c.templateState?.lifecycle?.archived).length,
+    },
+    {
+      href: '/tracker',
+      label: 'Case Tracker',
+      shortLabel: 'Track',
+      icon: ClipboardList,
+      active: pathname.startsWith('/tracker'),
+      count: trackerNeeds,
     },
     {
       href: '/sourcing',

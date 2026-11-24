@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation';
 import { Bell, Check, RotateCcw, Hourglass } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { inboxFor } from '@/lib/quote-approval';
+import { attention } from '@/lib/project-cases';
 
 const seenKey = (uid: string) => `qri_seen_inbox_${uid}`;
 const readSeen = (uid: string): string[] => {
@@ -16,7 +17,7 @@ const readSeen = (uid: string): string[] => {
 
 export default function NotificationBell({ variant }: { variant: 'rail' | 'phone' }) {
   const router = useRouter();
-  const { currentUser, activeCases, loadCase, refreshFromCloud } = useApp();
+  const { currentUser, activeCases, projectCases, loadCase, refreshFromCloud } = useApp();
   const [open, setOpen] = useState(false);
   const [seen, setSeen] = useState<string[]>([]);
   const uid = currentUser?.id ?? '';
@@ -26,7 +27,9 @@ export default function NotificationBell({ variant }: { variant: 'rail' | 'phone
     () => inboxFor(activeCases, currentUser ? { id: currentUser.id, name: currentUser.name, role: currentUser.role } : null, new Date()),
     [activeCases, currentUser?.id, currentUser?.name, currentUser?.role]
   );
-  const unread = items.filter((i) => i.needsAction || !seen.includes(i.key)).length;
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const reminders = useMemo(() => attention(projectCases, todayIso).filter((a) => a.reason !== 'no_next_action'), [projectCases, todayIso]);
+  const unread = items.filter((i) => i.needsAction || !seen.includes(i.key)).length + reminders.length;
 
   const toggle = () => {
     const next = !open;
@@ -40,6 +43,7 @@ export default function NotificationBell({ variant }: { variant: 'rail' | 'phone
     setSeen(all);
     try { localStorage.setItem(seenKey(uid), JSON.stringify(all)); } catch { /* private mode: fine */ }
   };
+  const goCase = (id: string) => { setOpen(false); markSeen(); router.push(`/tracker?case=${id}`); };
   const go = (caseId: string) => { setOpen(false); markSeen(); loadCase(caseId); router.push('/agent/quotation'); };
 
   const icon = (k: string) => (k === 'approve' ? <Hourglass className="w-4 h-4 text-blue-600" /> : k === 'approved' ? <Check className="w-4 h-4 text-emerald-600" /> : <RotateCcw className="w-4 h-4 text-amber-600" />);
@@ -64,9 +68,21 @@ export default function NotificationBell({ variant }: { variant: 'rail' | 'phone
           <div className="fixed inset-0 z-[60]" onClick={toggle} />
           <div role="dialog" aria-label="Notifications" className={`fixed z-[61] bg-white border border-slate-200 rounded-2xl shadow-2xl w-[calc(100vw-1.5rem)] max-w-sm text-xs ${variant === 'rail' ? 'left-[4.5rem] bottom-16' : 'right-3 top-12'}`}>
             <div className="px-4 py-3 border-b border-slate-100 font-bold text-slate-900 text-sm">Notifications</div>
-            {items.length === 0 ? (
+            {reminders.length > 0 && (
+              <ul className="divide-y divide-slate-100 border-b border-slate-100">
+                {reminders.map(({ c, reason }) => (
+                  <li key={c.id}>
+                    <button onClick={() => goCase(c.id)} className="w-full text-left px-4 py-3 flex gap-3 hover:bg-slate-50 cursor-pointer">
+                      <span className={`font-bold w-16 flex-shrink-0 ${reason === 'overdue' ? 'text-rose-700' : 'text-amber-700'}`}>{reason === 'overdue' ? 'Overdue' : 'Today'}</span>
+                      <span className="flex-1 min-w-0"><span className="block font-semibold text-slate-800 truncate">{c.title}</span><span className="block text-slate-600 truncate">{c.nextAction}{c.nextActionDue ? ` · ${c.nextActionDue}` : ''}</span></span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {items.length === 0 && reminders.length === 0 ? (
               <div className="p-5 text-center text-slate-500">Nothing needs you right now.</div>
-            ) : (
+            ) : items.length === 0 ? null : (
               <ul className="max-h-[60vh] overflow-y-auto divide-y divide-slate-100">
                 {items.map((i) => (
                   <li key={i.key}>
